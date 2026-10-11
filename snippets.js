@@ -13,4 +13,11 @@ export const snippets = [{
   previewSrc: './elements/skin-swipe/preview.html',
   readyMessage: true,
   download: './downloads/swipeActionMmmmm.zip',
+}, {
+  id: 'isButtonUltimate',
+  title: 'isButtonUltimate',
+  src: './elements/button-ultimate/index.html',
+  previewSrc: './elements/button-ultimate/preview.html',
+  readyMessage: true,
+  download: './downloads/isButtonUltimate.zip',
 }];

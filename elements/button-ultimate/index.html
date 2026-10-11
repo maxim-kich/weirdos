@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>isButtonUltimate</title>
+<style>
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+.depth-face, .depth-face * { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="cursor-depth-cta">
+  <div class="depth-scene" aria-label="Interactive rubber button">
+    <canvas class="depth-material" aria-hidden="true"></canvas>
+    <div class="depth-camera"><div class="depth-solid">
+      <div class="depth-layers" aria-hidden="true"></div>
+      <button type="button" class="depth-face cursor-interaction"><span>Buy now</span><span class="depth-center" aria-hidden="true"></span></button>
+    </div></div>
+  </div>
+</div>
+<style>
+  #cursor-depth-cta { --rubber:#42c07e; --rubber-dark:#274033; --rubber-light:#48765e; --ink:#111211; --paper:light-dark(#f6f7f6,#202221); --active:0; --strain:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  #cursor-depth-cta .depth-scene { position:relative; height:520px; overflow:hidden; background:var(--paper); touch-action:pan-y; }
+  html[data-visualize-standalone] #cursor-depth-cta .depth-scene { height:100dvh; }
+  #cursor-depth-cta .depth-material { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #cursor-depth-cta .depth-camera { position:absolute; inset:0; perspective:950px; perspective-origin:50% 50%; pointer-events:none; }
+  #cursor-depth-cta .depth-solid { position:absolute; left:50%; top:50%; width:224px; height:68px; margin:-34px 0 0 -112px; transform-style:preserve-3d; will-change:transform; }
+  #cursor-depth-cta .depth-layers { position:absolute; inset:0; transform-style:preserve-3d; }
+  #cursor-depth-cta .depth-layer { position:absolute; inset:0; border-radius:18px; background:linear-gradient(105deg,color-mix(in srgb,#77c997 var(--center-lift,0%),color-mix(in srgb,var(--rubber-light) var(--layer-light,55%),var(--rubber-dark))),color-mix(in srgb,#77c997 var(--center-lift,0%),var(--rubber-dark)) 80%); backface-visibility:hidden; }
+  #cursor-depth-cta .depth-head-layer { background:linear-gradient(105deg,#389c6b,#226845 85%); }
+  #cursor-depth-cta .depth-face { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:19px; padding:0 22px; border:0; border-radius:18px; background:var(--rubber); color:var(--ink); font:500 21px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; letter-spacing:-.015em; pointer-events:auto; backface-visibility:hidden; isolation:isolate; box-shadow:none; -webkit-tap-highlight-color:transparent; }
+  #cursor-depth-cta .depth-face::before { content:''; position:absolute; inset:0; z-index:-1; border-radius:inherit; opacity:var(--active); background:radial-gradient(ellipse at var(--shine-x,25%) var(--shine-y,15%),color-mix(in srgb,#cfdacd 28%,transparent),transparent 75%),linear-gradient(150deg,transparent 20%,color-mix(in srgb,var(--rubber-dark) 17%,transparent)); box-shadow:inset 0 2px 4px color-mix(in srgb,#cfdacd 28%,transparent),inset 0 -3px 7px color-mix(in srgb,var(--rubber-dark) 30%,transparent); }
+  #cursor-depth-cta .depth-face::after { content:''; position:absolute; inset:0; border-radius:inherit; opacity:calc(var(--active)*.09); pointer-events:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.55' filter='url%28%23n%29'/%3E%3C/svg%3E"); }
+  #cursor-depth-cta .depth-face svg { width:18px; height:18px; flex:none; stroke-width:1.8; }
+  #cursor-depth-cta .depth-center { position:absolute; left:50%; top:50%; width:0; height:0; pointer-events:none; }
+  @media(max-width:400px) { #cursor-depth-cta .depth-scene { height:450px; } }
+</style>
+<script>
+(() => {
+  const root=document.getElementById('cursor-depth-cta');
+  const scene=root.querySelector('.depth-scene'), solid=root.querySelector('.depth-solid'), face=root.querySelector('.depth-face');
+  const layers=root.querySelector('.depth-layers'),canvas=root.querySelector('.depth-material'),ctx=canvas.getContext('2d');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  const materialStretchDistance=180;
+  const current={depth:0,rx:0,ry:0,x:0,y:0,sx:1,sy:1,catch:0,press:0},target={...current},velocity={};
+  for(const key of Object.keys(current))velocity[key]=0;
+  const headStart=.85,layerCount=12,slices=[];
+  for(let i=0;i<layerCount;i++){const slice=document.createElement('div');slice.className='depth-layer depth-head-layer';layers.appendChild(slice);slices.push(slice);}
+  const strandSpecs=[[-91,.17,.89,2.2,.3],[-74,.08,.98,3.7,1.1],[-51,.2,.93,2.8,2.4],[-30,.1,.85,4.1,.6],[-13,.24,.97,2.6,1.8],[12,.06,.91,3.3,2.8],[36,.18,.96,4.4,1.3],[59,.12,.87,2.9,3.4],[83,.23,.98,3.6,2.1]];
+  const perimeter=[];
+  for(let corner=0;corner<4;corner++){
+    const centers=[[94,16],[-94,16],[-94,-16],[94,-16]];
+    for(let i=0;i<8;i++){const a=corner*Math.PI/2+i*Math.PI/16;perimeter.push([centers[corner][0]+18*Math.cos(a),centers[corner][1]+18*Math.sin(a)]);}
+  }
+  let rasterScale=1;
+  let pointer=null,lockPoint=null,captured=false,focused=false,pressed=false,raf=0,previous=0,box,releaseUntil=0,releaseDamping=.48;
+  function measure(){
+    box=scene.getBoundingClientRect();
+    // Keep zoom from multiplying the raster workload without bound.
+    rasterScale=Math.min(devicePixelRatio||1,1.5,Math.sqrt(1800000/Math.max(1,box.width*box.height)));
+    canvas.width=Math.max(1,Math.floor(box.width*rasterScale));canvas.height=Math.max(1,Math.floor(box.height*rasterScale));
+    ctx.setTransform(rasterScale,0,0,rasterScale,0,0);
+    pointer=null;pressed=false;lockPoint=null;updateTarget();wake();
+  }
+  function updateTarget(){
+    const dx=pointer?pointer.x-box.width/2:0,dy=pointer?pointer.y-box.height/2:0;
+    // Follow anywhere in the page, with the rubber base still anchored.
+    captured=!!pointer;
+    target.catch=captured?1:0;
+    if(captured)lockPoint={...pointer};
+    const influence=captured||(!pointer&&focused)?1:0,nx=Math.max(-1,Math.min(1,dx/Math.max(1,box.width/2))),ny=Math.max(-1,Math.min(1,dy/Math.max(1,box.height/2)));
+    target.depth=62*influence;
+    target.press=pressed?influence:0;
+    target.rx=reduced.matches?0:(focused&&!pointer?12:-ny*30*influence);
+    target.ry=reduced.matches?0:(focused&&!pointer?-12:nx*30*influence);
+    target.x=0;target.y=0;
+    target.sx=1;target.sy=1;
+  }
+  function hull(points){
+    points.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]),a=[],b=[];
+    for(const p of points){while(a.length>1&&cross(a.at(-2),a.at(-1),p)<=0)a.pop();a.push(p);}
+    for(let i=points.length-1;i>=0;i--){const p=points[i];while(b.length>1&&cross(b.at(-2),b.at(-1),p)<=0)b.pop();b.push(p);}
+    a.pop();b.pop();return a.concat(b);
+  }
+  function draw(){
+    const depth=Math.max(0,current.depth),active=Math.min(1,depth/62);
+    const rx=current.rx*Math.PI/180,ry=current.ry*Math.PI/180,cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry);
+    const rotate=(x,y,z)=>{x*=current.sx;y*=current.sy;const a=x*cy+z*sy,b=-x*sy+z*cy;return[a,y*cx-b*sx,y*sx+b*cx];};
+    const lift=Math.max(0,...[[-112,-34],[112,-34],[112,34],[-112,34]].map(([x,y])=>-rotate(x,y,0)[2]));
+    // The bottom is fixed to the page; the upper face moves independently.
+    const headThickness=9*active,topHeight=depth+lift+headThickness,zoom=950/(950-topHeight),catchAmount=Math.max(-.12,Math.min(1.16,current.catch));
+    const lockedX=lockPoint?(lockPoint.x-box.width/2)/zoom:current.x;
+    const lockedY=lockPoint?(lockPoint.y-box.height/2)/zoom:current.y;
+    const tx=current.x*(1-catchAmount)+lockedX*catchAmount,ty=current.y*(1-catchAmount)+lockedY*catchAmount;
+    solid.style.transform='none';
+    layers.style.visibility=depth>.05?'visible':'hidden';
+    const stretch=Math.hypot(tx,ty)/materialStretchDistance;
+    const contraction=1/Math.sqrt(1+stretch*2.8);
+    const normal=rotate(0,0,1),landing=Math.min(.07,Math.max(0,-current.depth)/100);
+    function ring(q){
+      const u=Math.min(1,q/headStart),bend=u*u*(3-2*u),neck=1-(1-contraction)*Math.pow(Math.sin(u*Math.PI),.85);
+      const cap=q>=headStart?(q-headStart)/(1-headStart):0;
+      // Round the underside inward; the head stays within the face outline.
+      const inset=q>=headStart?active*(1-Math.sqrt(Math.max(0,1-Math.pow(1-cap,2)))):0;
+      // The anchored footprint retains the button's original dimensions.
+      const radius=18;
+      const heightCurve=1-Math.cos(u*Math.PI/2);
+      const underside={x:tx-normal[0]*headThickness,y:ty-normal[1]*headThickness,z:topHeight-normal[2]*headThickness};
+      return{x:underside.x*bend+normal[0]*headThickness*cap,y:underside.y*bend+normal[1]*headThickness*cap,z:underside.z*heightCurve+normal[2]*headThickness*cap-current.press*2*cap,rx:current.rx*bend,ry:current.ry*bend,sx:(1+(current.sx-1+landing)*bend)*neck*(1-inset*.035),sy:(1+(current.sy-1-landing)*bend)*neck*(1-inset*.115),radius};
+    }
+    function project(r,x,y){
+      x*=r.sx;y*=r.sy;const ax=r.rx*Math.PI/180,ay=r.ry*Math.PI/180;
+      const px=x*Math.cos(ay),pz=-x*Math.sin(ay),py=y*Math.cos(ax)-pz*Math.sin(ax),z=r.z+y*Math.sin(ax)+pz*Math.cos(ax),k=950/(950-z);
+      return[box.width/2+(r.x+px)*k,box.height/2+(r.y+py)*k,z];
+    }
+    function smoothPath(points,closed=false){
+      const path=new Path2D();path.moveTo(points[0][0],points[0][1]);
+      const n=points.length;
+      for(let i=0;i<(closed?n:n-1);i++){
+        const a=points[closed?(i+n-1)%n:Math.max(0,i-1)],b=points[i],c=points[(i+1)%n],e=points[closed?(i+2)%n:Math.min(n-1,i+2)];
+        path.bezierCurveTo(b[0]+(c[0]-a[0])/6,b[1]+(c[1]-a[1])/6,c[0]-(e[0]-b[0])/6,c[1]-(e[1]-b[1])/6,c[0],c[1]);
+      }
+      if(closed)path.closePath();return path;
+    }
+    function polygonPath(points){const path=new Path2D();path.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)path.lineTo(points[i][0],points[i][1]);path.closePath();return path;}
+    function surfacePatch(rows,i,j,k){
+      const path=new Path2D(),a=rows[i][j],b=rows[i+1][j],c=rows[i+1][k],d=rows[i][k];
+      const before=rows[Math.max(0,i-1)],after=rows[Math.min(rows.length-1,i+2)];
+      path.moveTo(a[0],a[1]);
+      path.bezierCurveTo(a[0]+(b[0]-before[j][0])/6,a[1]+(b[1]-before[j][1])/6,b[0]-(after[j][0]-a[0])/6,b[1]-(after[j][1]-a[1])/6,b[0],b[1]);
+      path.lineTo(c[0],c[1]);
+      path.bezierCurveTo(c[0]-(after[k][0]-d[0])/6,c[1]-(after[k][1]-d[1])/6,d[0]+(c[0]-before[k][0])/6,d[1]+(c[1]-before[k][1])/6,d[0],d[1]);
+      path.closePath();return path;
+    }
+    ctx.clearRect(0,0,box.width,box.height);
+    if(depth>.05){
+      const rows=[];
+      for(let i=0;i<=28;i++){const r=ring(headStart*i/28);rows.push(perimeter.map(([x,y])=>project(r,x,y)));}
+      const shadowPoints=rows.filter((_,i)=>i%7===0).flatMap(row=>row.map(p=>[p[0]+p[2]*.55,p[1]+p[2]*.82]));
+      const shadowPath=polygonPath(hull(shadowPoints));
+      ctx.save();ctx.fillStyle=`rgba(17,18,17,${active*.12})`;ctx.shadowColor=`rgba(17,18,17,${active*.13})`;ctx.shadowBlur=(3+depth*.13)*rasterScale;ctx.fill(shadowPath);ctx.restore();
+      const start=project(ring(0),0,34),end=project(ring(headStart),0,34),surfaces=[];
+      for(let j=0;j<perimeter.length;j++){
+        const k=(j+1)%perimeter.length;
+        const shade=.45+.2*Math.cos((j+.5)/perimeter.length*Math.PI*2+2);
+        const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+        const base=mix([39,64,51],[72,118,94],shade),center=mix(base,[119,201,151],Math.min(.4,active*(.14+stretch*.18)));
+        const rgb=a=>`rgb(${a.map(Math.round).join(',')})`;
+        const gradient=ctx.createLinearGradient(start[0],start[1],end[0],end[1]);
+        gradient.addColorStop(0,rgb(base));gradient.addColorStop(.48,rgb(center));gradient.addColorStop(1,rgb(base));
+        // Visibility changes along a bent surface. Cull and depth-sort local
+        // patches instead of painting an entire strip by its average depth.
+        for(let i=0;i<rows.length-1;i++){
+          const corners=[rows[i][j],rows[i][k],rows[i+1][k],rows[i+1][j]];
+          let area=0;for(let n=0;n<4;n++){const a=corners[n],b=corners[(n+1)%4];area+=a[0]*b[1]-a[1]*b[0];}
+          if(area<=.0001)continue;
+          surfaces.push({edge:surfacePatch(rows,i,j,k),gradient,z:corners.reduce((sum,p)=>sum+p[2],0)/4});
+        }
+      }
+      ctx.fillStyle='#335743';ctx.fill(polygonPath(rows[0]));
+      surfaces.sort((a,b)=>a.z-b.z);
+      ctx.lineWidth=.6;
+      for(const surface of surfaces){ctx.fillStyle=surface.gradient;ctx.strokeStyle=surface.gradient;ctx.fill(surface.edge);ctx.stroke(surface.edge);}
+      const strain=active*Math.min(1,stretch*1.25);
+      const materialMask=new Path2D();for(const surface of surfaces)materialMask.addPath(surface.edge);
+      ctx.save();ctx.clip(materialMask);ctx.globalCompositeOperation='soft-light';ctx.lineCap='round';
+      const tone=ctx.createLinearGradient(start[0],start[1],end[0],end[1]);
+      tone.addColorStop(0,'rgba(121,170,139,0)');tone.addColorStop(.28,'rgba(121,170,139,.7)');tone.addColorStop(.66,'rgba(144,188,160,.8)');tone.addColorStop(1,'rgba(121,170,139,0)');
+      strandSpecs.forEach(([x,start,end,amplitude,phase],index)=>{
+        const points=[];
+        for(let i=0;i<=16;i++){const u=start+(end-start)*i/16,r=ring(u*headStart),drift=amplitude*Math.sin(u*Math.PI)*(Math.sin(u*Math.PI*1.7+phase)-Math.sin(phase));points.push(project(r,x+drift,34));}
+        ctx.globalAlpha=strain*.25*(.45+(index%3)*.17);ctx.strokeStyle=tone;ctx.lineWidth=.65+(index%4)*.18;ctx.stroke(smoothPath(points));
+      });ctx.restore();
+    }
+    slices.forEach((slice,i)=>{
+      const r=ring(headStart+(1-headStart)*i/(slices.length-1));
+      slice.style.transform=`translate3d(${r.x}px,${r.y}px,${r.z}px) rotateX(${r.rx}deg) rotateY(${r.ry}deg) scale(${r.sx},${r.sy})`;
+    });
+    face.style.transform=`translate3d(${tx}px,${ty}px,${topHeight-current.press*2}px) rotateX(${current.rx}deg) rotateY(${current.ry}deg) scale(${current.sx+landing},${current.sy-landing})`;
+    root.style.setProperty('--active',active.toFixed(4));
+    root.style.setProperty('--strain',(active*Math.min(1,stretch*1.25)).toFixed(4));
+    face.style.setProperty('--shine-x',`${28-current.ry*.9}%`);face.style.setProperty('--shine-y',`${20+current.rx*.9}%`);
+    const diffuse=Math.max(0,normal[0]*-.35+normal[1]*-.5+normal[2]*.79);
+    face.style.filter=active>.001?`brightness(${(1+active*(diffuse-.79)*.25).toFixed(4)})`:'none';
+    root.dataset.neckScale=contraction.toFixed(4);root.dataset.stretch=stretch.toFixed(4);root.dataset.depth=depth.toFixed(3);root.dataset.rx=current.rx.toFixed(3);root.dataset.ry=current.ry.toFixed(3);root.dataset.captured=String(captured);root.dataset.follow='screen';
+  }
+  function tick(time){
+    const dt=previous?Math.min(.035,(time-previous)/1000):1/60;previous=time;
+    let moving=false;
+    for(const key of Object.keys(current)){
+      if(reduced.matches){current[key]=target[key];velocity[key]=0;continue;}
+      const releasing=time<releaseUntil;
+      const steps=5,h=dt/steps,omega=releasing?15:20,damping=releasing?releaseDamping:.79;
+      for(let i=0;i<steps;i++){velocity[key]+=(omega*omega*(target[key]-current[key])-2*damping*omega*velocity[key])*h;current[key]+=velocity[key]*h;}
+      if(Math.abs(target[key]-current[key])<.001&&Math.abs(velocity[key])<.01){current[key]=target[key];velocity[key]=0;}else moving=true;
+    }
+    draw();if(moving)raf=requestAnimationFrame(tick);else{raf=0;previous=0;}
+  }
+  function wake(){if(!raf)raf=requestAnimationFrame(tick);}
+  function followPointer(event){pointer={x:event.clientX-box.left,y:event.clientY-box.top};updateTarget();wake();}
+  scene.addEventListener('pointermove',followPointer);
+  function release(){
+    if(!reduced.matches){releaseUntil=performance.now()+1200;releaseDamping=pressed?.72:.48;}
+    pressed=false;
+  }
+  function clearPointer(){release();pointer=null;updateTarget();wake();}
+  scene.addEventListener('pointerleave',clearPointer);document.addEventListener('pointerout',event=>{if(!event.relatedTarget)clearPointer();});
+  document.documentElement.addEventListener('mouseleave',clearPointer);window.addEventListener('blur',clearPointer);
+  face.addEventListener('pointerdown',event=>{pointer={x:event.clientX-box.left,y:event.clientY-box.top};pressed=true;updateTarget();wake();});
+  window.addEventListener('pointerup',event=>{release();if(event.pointerType==='touch')pointer=null;updateTarget();wake();});
+  window.addEventListener('pointercancel',clearPointer);
+  face.addEventListener('focus',()=>{focused=face.matches(':focus-visible');updateTarget();wake();});
+  face.addEventListener('blur',()=>{focused=false;updateTarget();wake();});
+  face.addEventListener('keydown',event=>{if(event.key===' '||event.key==='Enter'){pressed=true;updateTarget();wake();}});
+  face.addEventListener('keyup',event=>{if(event.key===' '||event.key==='Enter'){release();updateTarget();wake();}});
+  reduced.addEventListener('change',()=>{updateTarget();wake();});new ResizeObserver(measure).observe(scene);window.addEventListener('resize',measure);window.visualViewport?.addEventListener('resize',measure);measure();draw();
+})();
+</script>
+<script>
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && parent !== window) parent.postMessage({ type: 'weirdos:close' }, '*');
+});
+window.addEventListener('load', () => requestAnimationFrame(() => {
+  if (parent !== window) parent.postMessage({ type: 'weirdos:ready' }, '*');
+}), { once: true });
+</script>
+</body>
+</html>
