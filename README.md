@@ -13,3 +13,5 @@ Shots use a 4:3 aspect ratio. Previews run in sandboxed iframes so each snippet 
 Each preview has a shareable URL (`?preview=<id>`); the toolbar copies that link or downloads its ZIP. The gallery and Impressum use Simple Analytics. The footer links to the German legal notice and privacy information in `impressum.html`.
 
 `npm run check` validates JavaScript syntax, registry entries, static previews, and local asset paths. Node.js and Python 3 are required; no third-party dependencies are needed.
+
+For Cloudflare Git integration, set the build command to `npm run build` and the build output directory (or Workers assets directory) to `dist`. Keep the project root as this repository's root. The build validates and packages the snippets, then includes all gallery pages and browser resources, including `impressum.html` and `legal.css`. It fails if an HTML page references a missing local file. Deploy the complete `dist/` directory; deploying only the gallery files leaves the Impressum link broken.
