@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111211">
+<title>isSwtchCatDisabled</title>
+<style>
+:root { color-scheme:dark; }
+* { box-sizing:border-box; }
+body { margin:0; min-height:100svh; display:grid; place-items:center; background:#202221; }
+.cat-switch { position:relative; overflow:hidden; isolation:isolate; width:156px; height:84px; padding:0; border:0; border-radius:999px; background:#363636; box-shadow:inset 0 3px 7px #11121170,0 1px 0 #cfdacd0a; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+.cat-switch:focus-visible { outline:2px solid #cfdacd; outline-offset:6px; }
+.interior { position:absolute; inset:0; border-radius:inherit; overflow:hidden; clip-path:inset(0 round 42px); -webkit-mask-image:linear-gradient(#fff,#fff); isolation:isolate; contain:paint; pointer-events:none; }
+.carriage { position:absolute; left:6px; top:6px; width:72px; height:72px; z-index:2; transform:translateX(0); }
+.thumb { position:absolute; inset:0; border-radius:50%; background:#cfdacd; box-shadow:0 3px 7px #11121138,inset 0 1px 1px #e0e9de; }
+.thumb { transition:transform 160ms cubic-bezier(.22,1,.36,1),box-shadow 160ms cubic-bezier(.22,1,.36,1); }
+.cat-switch[data-pressed] .thumb, .cat-switch[data-active] .thumb { transform:scale(1.08); box-shadow:0 6px 12px #0008,0 2px 4px #0005,inset 0 1px 1px #f3f5ef; }
+.scratches { transition:transform 160ms cubic-bezier(.22,1,.36,1); }
+.cat-switch[data-pressed] .scratches, .cat-switch[data-active] .scratches { transform:scale(1.08); }
+@media(prefers-reduced-motion:reduce){.thumb,.scratches{transition:none;}}
+.scratches { position:absolute; inset:0; width:72px; height:72px; clip-path:circle(35px at 36px 36px); }
+.paw-boundary { position:absolute; inset:0; z-index:3; overflow:hidden; border-radius:42px; clip-path:inset(0 round 42px); contain:paint; }
+.paw { position:absolute; left:-45.36px; top:0px; width:146.88px; height:86.4px; overflow:visible; transform:translate(-145px,0px) rotate(-8deg); transform-origin:56.16px 40.8px; filter:drop-shadow(0 2px 1px #11121155); z-index:3; }
+.paw path { stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+/* Freeze the thumbnail at the paw's grip pose. */
+.carriage { transform: translateX(66px); }
+.paw { transform: translate(35px, 0px) rotate(-3deg); }
+.thumb, .scratches { transition: none; }
+</style>
+</head>
+<body>
+<button class="cat-switch" type="button" role="switch" aria-checked="false" aria-label="isSwtchCatDisabled" data-phase="grip" data-active>
+  <span class="interior" aria-hidden="true">
+    <span class="carriage">
+      <span class="thumb"></span>
+      <svg class="scratches" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g class="scratch-highlights" stroke="#f3f5ed" stroke-opacity=".85" stroke-linecap="round" stroke-linejoin="round" transform="translate(.3,.4)"></g>
+        <g class="scratch-grooves" stroke="#7d8879" stroke-opacity=".6" stroke-linecap="round" stroke-linejoin="round" transform="translate(-.2,-.25)"></g>
+        <g class="scratch-cores" stroke="#e5eadf" stroke-opacity=".95" stroke-linecap="round" stroke-linejoin="round"></g>
+      </svg>
+    </span>
+    <span class="paw-boundary">
+    <svg class="paw" viewBox="-42 -4 136 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="paw-art">
+        <image href="cat-paw-option-8-wide.png" x="-48" y="0" width="142" height="74" preserveAspectRatio="none"/>
+        <g class="claw" data-tip-x="70.18" data-tip-y="11.92"></g>
+        <g class="claw" data-tip-x="86.07" data-tip-y="28.59"></g>
+        <g class="claw" data-tip-x="86.72" data-tip-y="49.00"></g>
+        <g class="claw" data-tip-x="71.82" data-tip-y="65.67"></g>
+      </g>
+    </svg>
+    </span>
+  </span>
+</button>
+</body>
+</html>

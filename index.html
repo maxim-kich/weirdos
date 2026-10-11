@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111211">
+    <meta name="description" content="A library of weird interface ideas by Maxim Kich.">
+    <title>weirdos</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <h1 aria-label="weirdos"><span class="ascii-logo" aria-hidden="true">██╗    ██╗███████╗██╗██████╗ ██████╗  ██████╗ ███████╗
+██║    ██║██╔════╝██║██╔══██╗██╔══██╗██╔═══██╗██╔════╝
+██║ █╗ ██║█████╗  ██║██████╔╝██║  ██║██║   ██║███████╗
+██║███╗██║██╔══╝  ██║██╔══██╗██║  ██║██║   ██║╚════██║
+╚███╔███╔╝███████╗██║██║  ██║██████╔╝╚██████╔╝███████║
+ ╚══╝╚══╝ ╚══════╝╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚══════╝</span></h1>
+    </header>
+    <main><section id="gallery" class="gallery" aria-label="UI snippets"></section></main>
+    <dialog id="viewer" aria-labelledby="viewer-title" tabindex="-1">
+      <header class="viewer-header">
+        <h2 id="viewer-title"></h2>
+        <button id="viewer-download" class="icon-button" type="button" aria-label="Download snippet ZIP" title="Download ZIP"></button>
+        <button id="viewer-close" class="icon-button close-button" type="button" aria-label="Close preview" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </header>
+      <div id="viewer-stage" class="viewer-stage"></div>
+    </dialog>
+    <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+  </body>
+</html>

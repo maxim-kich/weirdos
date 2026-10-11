@@ -1,0 +1,7 @@
+{
+  "name": "weirdos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "predev": "python3 scripts/package-snippets.py", "dev": "node server.mjs", "package": "python3 scripts/package-snippets.py", "check": "node --check app.js && node --check snippets.js && node --check server.mjs && node scripts/validate-snippets.mjs" }
+}
