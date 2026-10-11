@@ -171,7 +171,7 @@ function openSnippet(snippet, button, updateURL = true) {
   const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160;
   modalAnimation = viewer.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing: 'ease-out' });
   shellAnimations = [stage, header].map(element => element.animate([{ transform: `translate(${modalOffset.x}px, ${modalOffset.y}px)` }, { transform: 'translate(0, 0)' }], { duration, easing: 'cubic-bezier(.22, 1, .36, 1)' }));
-  document.querySelector('#viewer-close').focus();
+  viewer.focus({ preventScroll: true });
   // Paint the modal and loader before initializing an independent snippet.
   requestAnimationFrame(() => requestAnimationFrame(() => loadLive(snippet, token)));
 }
@@ -207,9 +207,13 @@ for (const snippet of snippets) {
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Tab') {
+    document.documentElement.dataset.keyboardFocus = '';
     gallery.querySelectorAll('[data-restored-focus]').forEach(button => { delete button.dataset.restoredFocus; });
   }
-});
+}, true);
+document.addEventListener('pointerdown', () => {
+  delete document.documentElement.dataset.keyboardFocus;
+}, true);
 
 viewerDownload.innerHTML = downloadIcon;
 viewerDownload.addEventListener('click', () => { if (activeSnippet) downloadSnippet(activeSnippet); });

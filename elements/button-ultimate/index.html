@@ -143,15 +143,28 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
       const shadowPoints=rows.filter((_,i)=>i%7===0).flatMap(row=>row.map(p=>[p[0]+p[2]*.55,p[1]+p[2]*.82]));
       const shadowPath=polygonPath(hull(shadowPoints));
       ctx.save();ctx.fillStyle=`rgba(17,18,17,${active*.12})`;ctx.shadowColor=`rgba(17,18,17,${active*.13})`;ctx.shadowBlur=(3+depth*.13)*rasterScale;ctx.fill(shadowPath);ctx.restore();
-      const start=project(ring(0),0,34),end=project(ring(headStart),0,34),surfaces=[];
+      const surfaces=[];
+      // Color follows local material strain, rather than a screen-space gradient.
+      // The anchored base and the face stay dark; the thin middle lightens.
+      const stretchLight=active*.7*(1-Math.exp(-stretch*.9));
+      const middleWeight=u=>Math.pow(Math.sin(Math.PI*Math.max(0,Math.min(1,(u-.12)/.76))),2);
       for(let j=0;j<perimeter.length;j++){
         const k=(j+1)%perimeter.length;
         const shade=.45+.2*Math.cos((j+.5)/perimeter.length*Math.PI*2+2);
         const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
-        const base=mix([39,64,51],[72,118,94],shade),center=mix(base,[119,201,151],Math.min(.4,active*(.14+stretch*.18)));
+        const base=mix([39,64,51],[72,118,94],shade);
         const rgb=a=>`rgb(${a.map(Math.round).join(',')})`;
-        const gradient=ctx.createLinearGradient(start[0],start[1],end[0],end[1]);
-        gradient.addColorStop(0,rgb(base));gradient.addColorStop(.48,rgb(center));gradient.addColorStop(1,rgb(base));
+        // All patches along a strip share one continuous color field. Separate
+        // patch gradients clamp at skewed edges and expose horizontal seams.
+        const mid=row=>[(row[j][0]+row[k][0])/2,(row[j][1]+row[k][1])/2];
+        const from=mid(rows[0]),to=mid(rows.at(-1)),dx=to[0]-from[0],dy=to[1]-from[1],length2=Math.max(.001,dx*dx+dy*dy);
+        const gradient=ctx.createLinearGradient(from[0],from[1],to[0],to[1]);
+        const stops=rows.map((row,i)=>{
+          const point=mid(row);
+          return {offset:Math.max(0,Math.min(1,((point[0]-from[0])*dx+(point[1]-from[1])*dy)/length2)),color:rgb(mix(base,[119,201,151],stretchLight*middleWeight(i/28)))};
+        });
+        stops.sort((a,b)=>a.offset-b.offset);
+        stops.forEach(stop=>gradient.addColorStop(stop.offset,stop.color));
         // Visibility changes along a bent surface. Cull and depth-sort local
         // patches instead of painting an entire strip by its average depth.
         for(let i=0;i<rows.length-1;i++){
@@ -168,12 +181,16 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
       const strain=active*Math.min(1,stretch*1.25);
       const materialMask=new Path2D();for(const surface of surfaces)materialMask.addPath(surface.edge);
       ctx.save();ctx.clip(materialMask);ctx.globalCompositeOperation='soft-light';ctx.lineCap='round';
-      const tone=ctx.createLinearGradient(start[0],start[1],end[0],end[1]);
-      tone.addColorStop(0,'rgba(121,170,139,0)');tone.addColorStop(.28,'rgba(121,170,139,.7)');tone.addColorStop(.66,'rgba(144,188,160,.8)');tone.addColorStop(1,'rgba(121,170,139,0)');
+      ctx.strokeStyle='rgb(144,188,160)';
       strandSpecs.forEach(([x,start,end,amplitude,phase],index)=>{
         const points=[];
         for(let i=0;i<=16;i++){const u=start+(end-start)*i/16,r=ring(u*headStart),drift=amplitude*Math.sin(u*Math.PI)*(Math.sin(u*Math.PI*1.7+phase)-Math.sin(phase));points.push(project(r,x+drift,34));}
-        ctx.globalAlpha=strain*.25*(.45+(index%3)*.17);ctx.strokeStyle=tone;ctx.lineWidth=.65+(index%4)*.18;ctx.stroke(smoothPath(points));
+        ctx.lineWidth=.65+(index%4)*.18;
+        for(let i=0;i<points.length-1;i++){
+          const u=start+(end-start)*(i+.5)/16;
+          ctx.globalAlpha=strain*.25*(.45+(index%3)*.17)*middleWeight(u);
+          ctx.stroke(smoothPath(points.slice(i,i+2)));
+        }
       });ctx.restore();
     }
     slices.forEach((slice,i)=>{
