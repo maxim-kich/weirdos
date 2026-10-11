@@ -21,7 +21,7 @@ Inspect image dimensions and file sizes. Resize oversized raster assets for thei
 
 `preview.html` shows one recognizable, intentional pose, with no scripts, timers, interaction, or animation. Freeze the element with CSS and static markup. Do not merely show a loading state or an empty idle state if the defining feature would be hidden. The cat switch preview shows the paw gripping the knob.
 
-Match the interactive document's background, element size, alignment, and relative position. The preview and interactive element should occupy the same coordinates in the same viewport; opening the modal must not move the element inside its canvas.
+Keep the preview faithful to the snippet's background and design. Its intentional static pose may differ from the interactive idle pose. The gallery preview stays in its card; it is never moved or stretched into the modal.
 
 A typical centered canvas uses:
 
@@ -42,51 +42,38 @@ Append one entry to `snippets.js`:
   title: 'myWeirdo', // use the exact name supplied by the user
   src: './elements/my-weirdo/index.html',
   previewSrc: './elements/my-weirdo/preview.html',
+  readyMessage: true,
   download: './downloads/myWeirdo.zip',
 }
 ```
 
 The ID must be unique and contain only letters, numbers, hyphens, or underscores. The ZIP filename and its top-level folder use that ID. The title stays one line and truncates automatically. Adding an ordinary entry should not require editing `app.js`, `styles.css`, or the gallery HTML.
 
-## 4. Preserve positioning and motion
+## 4. Shared modal flow
 
-The host moves the actual static preview into the modal's top layer. Its logical iframe width and height stay at the gallery shot size. A single uniform scale and translation carries that fixed canvas into the centered modal and back. This preserves the element's proportions and relative position. Never animate separate X/Y scales, iframe dimensions, or viewport-dependent reflow during the transition.
+Every weirdo uses the same host behavior:
 
-The host controls these established behaviors:
+- The gallery loads only the script-free `preview.html` in a sandboxed, inert iframe.
+- Clicking a card opens an independent centered modal with a 160 ms opacity fade and a small translation toward its final position from the clicked card (at most 16 px horizontally and 12 px vertically). The gallery preview remains untouched.
+- The modal shows a shared spinner while its separate `index.html` iframe loads and initializes. Its own design runs in its normal standalone idle state, at the modal's actual viewport size.
+- Once document loading and the snippet's `weirdos:ready` message are both complete, the real snippet fades in over 160 ms and becomes interactive.
+- Closing fades the modal out over 120 ms with the same small directional translation, destroys its interactive iframe, restores scrolling, and returns focus to the trigger without displaying a focus ring. Tab navigation resumes visible focus on the whole card; each card is one button and one tab stop.
+- There is no gallery-to-modal geometry morph, preview iframe reparenting, or per-element pose protocol. Do not use `transitionPose`, `?pose=preview`, or `weirdos:pose`.
+- Each modal has a shareable gallery URL using `?preview=<id>`. Loading that URL opens the matching modal. The toolbar's share button copies this URL and confirms the copy. Back/Forward follows modal navigation; closing a directly loaded preview returns to the gallery on the same page.
 
-| Behavior | Contract |
-| --- | --- |
-| Gallery | Two cards per row; one on mobile; unified card hover |
-| Download | ZIP download in the modal toolbar only; gallery cards show only the preview and title |
-| Canvas | 4:3, centered in the modal, with outer space |
-| Opening | 240 ms, `cubic-bezier(.22, 1, .36, 1)` |
-| Closing | 420 ms with the same easing |
-| Toolbar | Separate from the canvas; appears after opening and hides immediately when closing starts |
-| Background | Blurred and dimmed |
-| Dismissal | Close button, Escape, or a click outside the preview and toolbar |
-| Scroll | Locked from opening through closing; original page position restored afterward |
-| Reduced motion | Host motion becomes instantaneous; element must also respect the preference |
-| Isolation | Static thumbnail has no script permission; modal allows scripts without same-origin access |
+Use native default and pointer cursors for the gallery and interactive controls. Keep the cursor consistent across each control and its children, including its active state. Keep button hit areas stationary while animating visual contents. Decorative SVG/canvas children should not intercept pointer events.
 
-For elements whose preview and idle states look the same, the host's default handoff is sufficient. If they differ visibly, use the pose bridge below instead of letting a crossfade substitute for motion.
+The host preserves the two-column gallery (one on mobile), 4:3 modal canvas with outer padding, separate toolbar, ZIP downloads only in the toolbar, blurred/dimmed backdrop, Escape and outside-click dismissal, focus trapping, and scroll locking. Reduced motion removes the fades and spinner animation. Resize the independent modal viewport normally; never stretch its axes.
 
-## 5. Animate between different poses when needed
+## 5. Shared readiness and dismissal contract
 
-Add `transitionPose: true` to that registry entry **only after implementing this protocol** in its interactive HTML. The host opens the document with `?pose=preview`.
+Every registry entry uses `readyMessage: true`. Every interactive `index.html` sends one readiness message after all required assets are loaded and its first usable frame has rendered:
 
-1. Read that query parameter and initialize the interactive document in exactly the static preview pose, without an entrance animation.
-2. After that pose and required assets are ready, notify the host:
+```js
+if (parent !== window) parent.postMessage({ type: 'weirdos:ready' }, '*');
+```
 
-   ```js
-   if (parent !== window) parent.postMessage({ type: 'weirdos:ready' }, '*');
-   ```
-
-3. Listen for messages from `parent`, verify `event.source === parent`, and handle `{ type: 'weirdos:pose', pose: 'idle' }` and `{ type: 'weirdos:pose', pose: 'preview' }`.
-4. Animate actual element parts between poses, starting from their current rendered values. Do not fade between two different silhouettes. Opening's idle motion should be about **200 ms**; returning to preview should finish within **350 ms**, before the host's 420 ms closing motion ends.
-5. Cancel or retarget ongoing animations safely when direction changes. Disable activation while settling, then restore it in idle. Closing during an interaction must end in the same pose as `preview.html`, including transient marks and effects.
-6. Keep normal standalone behavior when `?pose=preview` is absent. Respect `prefers-reduced-motion`.
-
-The host validates messages against the active iframe's `contentWindow`. `'*'` is needed because the sandboxed document has an opaque origin; do not add `allow-same-origin` to work around this.
+For a DOM-only snippet, wait for document load and the first animation frame. For canvas/WebGL or asynchronous initialization, send readiness after the first successful draw. Do not signal ready for an empty canvas or while required images are still loading. Keep normal standalone interaction; the modal does not request a special starting pose.
 
 Forward Escape from the interactive element:
 
@@ -97,6 +84,8 @@ document.addEventListener('keydown', event => {
   }
 });
 ```
+
+The host validates messages against its current interactive iframe's `contentWindow`, and discards late messages after closing. `'*'` is required by the opaque sandbox origin. Do not add `allow-same-origin`.
 
 ## 6. Package and verify before main
 
@@ -113,10 +102,10 @@ npm run dev
 Before considering the change ready for `main`, verify:
 
 - The gallery shows only registered real elements. Its static preview displays the intended pose and loads all assets.
-- At desktop and mobile widths, the element stays in the same relative position while opening and closing. There is no distortion, reflow, flash, or abrupt pose swap.
-- The modal interaction works repeatedly. Also close during opening, settling, and the element's own animation.
-- The toolbar hides at the start of closing. Escape closes from inside the iframe; clicking outside the canvas and toolbar also closes it. Clicking the canvas or its controls must not dismiss it. Keyboard focus returns; there is no persistent card selection.
-- Page scrolling stays locked during the modal and both transitions. Closing restores the original scroll position. Check reduced motion and viewport resizing.
+- At desktop and mobile widths, gallery previews remain static and in their original cards. The independent modal uses only a short fade and bounded translation, without zooming, stretching, or moving the gallery iframe. Its live snippet has its own correctly sized viewport.
+- The loader remains visible during delayed loading, and live content appears only after assets and first-render readiness. The modal interaction works repeatedly. Close during the opening fade, loading, content fade, and the element's own animation; late loading must not reopen it.
+- The toolbar fades out with the modal. Escape closes from inside the iframe; clicking outside the canvas and toolbar also closes it. Clicking the canvas or its controls must not dismiss it. Keyboard focus returns; there is no persistent card selection.
+- Page scrolling stays locked during the modal and its fades. Closing restores the original scroll position. Check reduced motion and viewport resizing.
 - The modal's download button retrieves the correct ZIP. Gallery cards have no download icon. Inspect the archive, extract it into a temporary folder, and open its `index.html` directly to test the interaction and asset paths.
 - There are no new console errors, missing assets, unrelated changes, or committed generated ZIPs.
 

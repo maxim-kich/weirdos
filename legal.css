@@ -1,0 +1,14 @@
+.legal-page { width: 100%; max-width: 1000px; padding: 32px 40px; }
+.legal-back, .legal-text a { color: var(--text); text-underline-offset: 3px; }
+.legal-back:hover, .legal-text a:hover { color: var(--accent); }
+.legal-text { list-style: none; margin: 24px 0 0; padding: 0; counter-reset: line; }
+.legal-text li { display: flex; gap: 20px; line-height: 1.5; }
+.legal-text li::before { counter-increment: line; content: counter(line) " |"; flex: 0 0 42px; text-align: right; white-space: nowrap; color: var(--muted); user-select: none; }
+.legal-text li > * { min-width: 0; overflow-wrap: anywhere; }
+.legal-text h2 { margin: 0; font: inherit; font-weight: 600; }
+.legal-tag { color: #c15f5f; }
+@media (max-width: 767px) {
+  .legal-page { padding: 24px 16px; }
+  .legal-text li { gap: 12px; }
+  .legal-text li::before { flex-basis: 32px; }
+}

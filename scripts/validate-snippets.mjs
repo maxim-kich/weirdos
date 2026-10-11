@@ -31,6 +31,8 @@ for (const snippet of snippets) {
   ids.add(snippet.id);
   requireValid(typeof snippet.title === 'string' && snippet.title.trim() && !/[\r\n]/.test(snippet.title), `Invalid title: ${snippet.id}`);
   requireValid(snippet.download === `./downloads/${snippet.id}.zip`, `ZIP path must match ID: ${snippet.id}`);
+  requireValid(snippet.readyMessage === true, `Every snippet must implement the shared ready message: ${snippet.id}`);
+  requireValid(snippet.transitionPose === undefined, `Gallery pose transitions are obsolete: ${snippet.id}`);
   const source = resolve(root, snippet.src || '');
   requireValid(source.startsWith(elements + sep) && source.endsWith(`${sep}index.html`), `Expected elements/<folder>/index.html: ${snippet.id}`);
   const folder = dirname(source);

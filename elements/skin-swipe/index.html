@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#e5d0bf">
+<title>swipeActionMmmmm</title>
+<style>
+*{box-sizing:border-box}html{color-scheme:light}body{margin:0;min-height:100svh;display:grid;place-items:center;background:#e5d0bf;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+.skin{position:relative;width:min(440px,calc(100vw - 48px));height:152px;border:0;border-radius:80px;padding:0;isolation:isolate;cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;background:#bc8e71;box-shadow:0 24px 42px #76533d26,0 6px 12px #76533d20,inset 0 1px 1px #fff3;outline:none;transform:translateZ(0)}
+.skin:active{cursor:grabbing}.skin:focus-visible{outline:1px solid #f2d8c3aa;outline-offset:8px}
+.surface{pointer-events:none;position:absolute;inset:0;overflow:hidden;border-radius:inherit;isolation:isolate;mask-image:linear-gradient(#fff,#fff)}canvas{width:100%;height:100%;display:block}
+.surface:after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:linear-gradient(180deg,#fff2,transparent 25%,transparent 65%,#4326193d);box-shadow:inset 0 1px 2px #ffe6ce80,inset 0 -5px 12px #58301b40,inset 3px 0 14px #5c332529,inset -3px 0 14px #5c332529}
+.label{position:absolute;inset:0;display:grid;align-items:center;justify-content:center;font-size:26px;font-weight:300;letter-spacing:-.6px;color:rgba(255,248,240,.58);text-shadow:0 1px 8px #fff3;filter:blur(.2px);pointer-events:none;white-space:nowrap}
+.words,.result{grid-area:1/1;display:block;will-change:transform,opacity}
+.words{color:rgba(255,248,240,.67)}
+.result{opacity:0;transform:translateY(15px) scale(.78)}
+.skin:not([data-interacted]) .words{background:linear-gradient(110deg,rgba(255,248,240,.65) 28%,rgba(255,252,247,.86) 49%,rgba(255,248,240,.65) 70%);background-size:250% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;animation:shimmer 4.2s cubic-bezier(.37,0,.63,1) infinite}
+@keyframes shimmer{0%{background-position:150% 0}96%,100%{background-position:-60% 0}}
+@media(prefers-reduced-motion:reduce){.skin:not([data-interacted]) .words{animation:none}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:480px){.skin{height:132px}.label{font-size:24px}}
+body{cursor:default}
+.skin,.skin:active,.skin *{cursor:pointer}
+</style>
+</head>
+<body>
+<button class="skin" aria-label="Swipe right to action. Or press Enter." data-phase="idle">
+<span class="surface" aria-hidden="true"><canvas></canvas></span>
+<span class="label" aria-hidden="true"><span class="words">swipe to action</span><span class="result">action</span></span>
+</button><span class="sr" role="status" aria-live="polite"></span>
+<script src="assets/skin-texture.js"></script>
+<script src="assets/skin-relief.js"></script>
+<script>
+(()=>{
+const el=document.querySelector('.skin'),canvas=el.querySelector('canvas'),ctx=canvas.getContext('2d'),label=el.querySelector('.label'),words=el.querySelector('.words'),result=el.querySelector('.result'),status=document.querySelector('[role=status]');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)'),image=new Image();image.src=window.skinTexture;
+const reliefImages=window.skinRelief.map(source=>{const image=new Image();image.src=source;return image});
+const assetsReady=()=>[image,...reliefImages].every(image=>image.complete&&image.naturalWidth);
+let surfaceDrawn=false;
+const W=880,H=304;canvas.width=W;canvas.height=H;
+let hostReady=false;
+const follicles=[];
+const hash=(x,y)=>{const n=((x*73+y*151+19)%997+997)%997;return ((n*n*13+n*131)%65521)/65521};
+for(let row=0;row*30<H;row++)for(let col=0;col*36<W;col++){
+const q=hash(col,row);if(hash(col+17,row+23)<.08)continue;
+const x=col*36+18+(q-.5)*22,y=row*30+15+(hash(col+9,row)-.5)*18;
+follicles.push({x,y,hair:q<.68,length:22+hash(col,row+6)*13,lean:(hash(col+8,row+3)-.5)*.32,curve:(hash(col+2,row+4)-.5)*.13,lift:0})}
+
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+let down=false,pointer=null,startX=0,lastX=0,touchX=0,touchY=H/2,progress=0,reachedEnd=false,swipeRect=null,pull=0,pressure=0,release=0,now=0,completedAt=-99,events=[],reactionStarted=false,lastTime=0,textX=0,textY=0,labelMix=0,labelVelocity=0;
+function coords(e){const r=down&&swipeRect?swipeRect:el.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}}
+function wave(power=1){events=[{time:now,power}];reactionStarted=true}
+function complete(){completedAt=now;el.dataset.phase='complete';status.textContent='Action complete';el.dispatchEvent(new CustomEvent('skin-action',{bubbles:true}));wave(1);if(navigator.vibrate)navigator.vibrate(12)}
+el.addEventListener('pointerdown',e=>{if(down||e.button!==0)return;el.dataset.interacted='';swipeRect=el.getBoundingClientRect();down=true;pointer=e.pointerId;el.setPointerCapture(pointer);const p=coords(e);startX=lastX=touchX=p.x;touchY=p.y;progress=0;reachedEnd=false;el.dataset.phase='dragging';reactionStarted=false;events=[]});
+el.addEventListener('pointermove',e=>{if(!down||e.pointerId!==pointer)return;const p=coords(e);touchX=clamp(p.x,0,W);touchY=clamp(p.y,0,H);updateSwipe(p.x);lastX=p.x});
+function updateSwipe(x){progress=clamp((x-startX)/Math.max(1,W-40-startX),0,1);
+// Once the gesture reaches the success zone, release confirms it despite minor hand drift.
+if(progress>=.9&&x-startX>=24)reachedEnd=true;}
+function end(e,cancel=false){if(!down||e.pointerId!==pointer)return;const endpoint=coords(e);updateSwipe(endpoint.x);down=false;release=now;if(!cancel&&reachedEnd)complete();else{el.dataset.phase='idle'}progress=0;pointer=null;swipeRect=null;reachedEnd=false}
+el.addEventListener('pointerup',e=>end(e));el.addEventListener('pointercancel',e=>end(e,true));el.addEventListener('lostpointercapture',e=>end(e,true));
+el.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' '||e.key==='ArrowRight')&&!e.repeat){e.preventDefault();if(!down){el.dataset.interacted='';reactionStarted=false;complete()}}});
+const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a),0,1);return t*t*t*(t*(t*6-15)+10)};
+function activation(x){if(reduced.matches)return 0;let v=0;for(const e of events){const a=now-e.time-x/450;v=Math.max(v,e.power*smooth(0,.7,a)*(1-smooth(1.65,3.65,a)))}return v}
+// One photographic albedo. The surface normal and UV coordinates deform continuously.
+const material=document.createElement('canvas');material.width=W;material.height=H;
+const gl=material.getContext('webgl',{alpha:false,preserveDrawingBuffer:false});let program,texture,uniforms,ready=false;
+if(gl){
+const vertex=`attribute vec2 position;varying vec2 uv;void main(){uv=position*.5+.5;gl_Position=vec4(position,0.,1.);}`;
+const fragment=`precision highp float;
+varying vec2 uv;uniform sampler2D skin,bumpNormals,baseNormals;uniform float age,pull;uniform vec2 touch;
+float smoother(float a,float b,float v){float t=clamp((v-a)/(b-a),0.,1.);return t*t*t*(t*(t*6.-15.)+10.);}
+float raised(float x){float a=age-x/450.;return smoother(0.,.7,a)*(1.-smoother(1.65,3.65,a));}
+void main(){vec2 p=vec2(uv.x*880.,(1.-uv.y)*304.);
+float influence=exp(-dot((p-touch)/vec2(170.,145.),(p-touch)/vec2(170.,145.)));
+float drag=pull*influence;p.x-=drag;p.y+=(p.y-touch.y)*influence*pull/420.;
+// The same follicle/pore relief is precomputed; only its lift and UV deformation change.
+vec2 normalUV=clamp(p/vec2(880.,304.),vec2(.5/880.,.5/304.),vec2(1.-.5/880.,1.-.5/304.));
+vec3 base=texture2D(baseNormals,normalUV).rgb;
+vec2 gradient=(base.rg*2.-1.)*.128+(texture2D(bumpNormals,normalUV).rg*2.-1.)*.32*raised(p.x);
+vec3 normal=normalize(vec3(-gradient,1.));vec3 light=normalize(vec3(-.48,-.64,1.));
+float diffuse=dot(normal,light)/light.z;float shade=clamp(1.+(diffuse-1.)*.55,.82,1.14);
+// Skin lines stretch over each rising follicle instead of changing photographs.
+vec2 samplePoint=p+gradient*2.2;vec2 st=vec2(.12+samplePoint.x/880.*.76,.5+(samplePoint.y/304.-.5)*(.76*1536./1024.*304./880.));
+vec3 color=texture2D(skin,st).rgb;
+// Pore openings share the same moving material coordinates as the grain.
+color*=1.-base.b*.045;
+float glint=max(0.,pow(max(dot(normal,normalize(light+vec3(0.,0.,1.))),0.),24.)-pow(max(dot(vec3(0.,0.,1.),normalize(light+vec3(0.,0.,1.))),0.),24.));
+gl_FragColor=vec4(color*shade+vec3(1.,.86,.72)*glint*.035,1.);}`;
+function shader(type,source){const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh}
+program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vertex));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);const position=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
+uniforms=Object.fromEntries(['age','pull','touch','skin','bumpNormals','baseNormals'].map(name=>[name,gl.getUniformLocation(program,name)]));
+texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+}
+function renderMaterial(){if(!gl)return false;
+ if(!ready){
+  [image,...reliefImages].forEach((image,index)=>{
+   gl.activeTexture(gl.TEXTURE0+index);gl.bindTexture(gl.TEXTURE_2D,index===0?texture:gl.createTexture());
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,image);
+   gl.uniform1i(uniforms[['skin','bumpNormals','baseNormals'][index]],index);
+  });ready=true;
+ }
+ gl.uniform1f(uniforms.age,!reduced.matches&&events.length?now-events[0].time:-100.);
+ gl.uniform1f(uniforms.pull,reduced.matches?0:pull);gl.uniform2f(uniforms.touch,touchX,touchY);
+ gl.drawArrays(gl.TRIANGLES,0,6);ctx.drawImage(material,0,0);return true;
+}
+function draw(time){now=time/1000;const dt=Math.min(.04,(time-lastTime)/1000||.016);lastTime=time;
+if(now-completedAt>3.1&&el.dataset.phase==='complete'){el.dataset.phase='idle';status.textContent='';}
+pressure+=(Number(down)-pressure)*Math.min(1,dt*12);pull+=(progress*30-pull)*Math.min(1,dt*9);
+const breathing=reduced.matches?0:Math.sin(now*1.32)*.003;
+el.querySelector('.surface').style.transform=`scale(${1+breathing},${1+breathing*1.8})`;
+events=events.filter(e=>now-e.time<6.1);
+// Reuse the complete canvas while idle; breathing and text stay on compositor layers.
+const surfaceMoving=down||pressure>.001||Math.abs(pull)>.001||events.length||follicles.some(f=>f.lift>.001);
+if(assetsReady()&&(!surfaceDrawn||surfaceMoving)){
+ctx.clearRect(0,0,W,H);
+if(assetsReady()){if(!renderMaterial()){const cw=image.naturalWidth*.76,ch=cw*H/W;ctx.drawImage(image,(image.naturalWidth-cw)/2,(image.naturalHeight-ch)/2,cw,ch,0,0,W,H)}}else{ctx.fillStyle='#c39a7e';ctx.fillRect(0,0,W,H)}
+// Soft warmth travels underneath the grain rather than covering it.
+if(pressure>.01){const blush=ctx.createRadialGradient(touchX,touchY,2,touchX,touchY,180);blush.addColorStop(0,`rgba(149,66,53,${pressure*.035})`);blush.addColorStop(1,'rgba(149,66,53,0)');ctx.fillStyle=blush;ctx.fillRect(0,0,W,H)}
+events=events.filter(e=>now-e.time<6.1);
+for(const [index,f] of follicles.entries()){const excitation=activation(f.x);
+f.lift+=(excitation-f.lift)*(1-Math.exp(-dt*15));const lift=f.lift;
+const influence=Math.exp(-Math.pow((f.x-touchX)/170,2)-Math.pow((f.y-touchY)/145,2));
+const amount=reduced.matches?0:pull;const x=f.x+amount*influence,y=f.y-(f.y-touchY)*influence*amount/420-lift*.8;
+if(f.hair){const len=f.length,raised=clamp(lift,0,1);
+const angle=-.13+f.lean-raised*(1.14+f.lean*.4);
+const tipX=x+Math.cos(angle)*len,tipY=y+Math.sin(angle)*len;
+// A gently curved, tapered shaft rises from its follicle with no abrupt curl.
+const c1x=x+Math.cos(angle+f.curve)*len*.34,c1y=y+Math.sin(angle+f.curve)*len*.34;
+const c2x=x+Math.cos(angle-f.curve)*len*.72,c2y=y+Math.sin(angle-f.curve)*len*.72;
+ctx.lineCap='round';ctx.lineWidth=.9;ctx.strokeStyle=`rgba(68,42,25,${.075+raised*.025})`;
+ctx.beginPath();ctx.moveTo(x+1,y+1);ctx.quadraticCurveTo(x+len*.4,y+2,tipX+raised*3,y+(tipY-y)*(.22+raised*.12)+2);ctx.stroke();
+let px=x,py=y;
+for(let segment=1;segment<=9;segment++){const t=segment/9,u=1-t;
+const nx=u*u*u*x+3*u*u*t*c1x+3*u*t*t*c2x+t*t*t*tipX,ny=u*u*u*y+3*u*u*t*c1y+3*u*t*t*c2y+t*t*t*tipY;
+ctx.lineWidth=1.15*(1-t*.74);ctx.strokeStyle=`rgba(82,53,33,${(.28+raised*.13)*(1-t*.38)})`;
+ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(nx,ny);ctx.stroke();
+ctx.lineWidth=.4*(1-t*.6);ctx.strokeStyle=`rgba(255,234,204,${.25+raised*.22})`;
+ctx.beginPath();ctx.moveTo(px-.4,py-.45);ctx.lineTo(nx-.4,ny-.45);ctx.stroke();px=nx;py=ny;}
+}}
+
+// Finger pressure creates a broad shallow depression with a lit leading edge.
+if(pressure>.01){const shadow=ctx.createRadialGradient(touchX,touchY,12,touchX,touchY,150);shadow.addColorStop(0,`rgba(98,50,32,${pressure*.045})`);shadow.addColorStop(.65,`rgba(109,57,37,${pressure*.018})`);shadow.addColorStop(1,'rgba(109,57,37,0)');ctx.fillStyle=shadow;ctx.fillRect(touchX-155,touchY-155,310,310)}
+surfaceDrawn=true;
+}
+const textTarget=down?(startX<W*.5?-10:0)+(touchX-startX)/W*38:0;
+textX+=(textTarget-textX)*(1-Math.exp(-dt*10));textY+=((down?(touchY-H/2)/H*6:0)-textY)*(1-Math.exp(-dt*10));
+const targetMix=el.dataset.phase==='complete'?1:0;
+if(reduced.matches){labelMix=targetMix;labelVelocity=0}else{
+// An underdamped spring carries the outgoing phrase into the settled action.
+const stiffness=targetMix?48:85,damping=targetMix?6.5:14;
+labelVelocity+=(stiffness*(targetMix-labelMix)-damping*labelVelocity)*dt;labelMix+=labelVelocity*dt;}
+words.style.opacity=clamp(1-labelMix*1.35,0,1);
+words.style.transform=`translateY(${-labelMix*9}px) scale(${1-labelMix*.06})`;
+result.style.opacity=clamp((labelMix-.14)/.86,0,1);
+result.style.transform=`translateY(${(1-labelMix)*15}px) scale(${.78+labelMix*.22})`;
+label.style.opacity=1-progress*.25;label.style.transform=`translate(${textX}px,${textY}px)`;
+if(!hostReady&&surfaceDrawn&&parent!==window){hostReady=true;parent.postMessage({type:'weirdos:ready'},'*');}
+requestAnimationFrame(draw)}requestAnimationFrame(draw);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && parent !== window) parent.postMessage({ type: 'weirdos:close' }, '*');
+});
+})();
+</script>
+</body></html>

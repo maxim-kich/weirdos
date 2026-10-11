@@ -6,17 +6,23 @@ const viewer = document.querySelector('#viewer');
 const stage = document.querySelector('#viewer-stage');
 const viewerTitle = document.querySelector('#viewer-title');
 const viewerDownload = document.querySelector('#viewer-download');
+const viewerShare = document.querySelector('#viewer-share');
+const cardButtons = new Map();
+let pendingRoute = false;
 const feedback = document.querySelector('#feedback');
 let activeSnippet;
 let trigger;
 let feedbackTimer;
-let activeCard;
-let modalAnimation;
 let modalPhase = 'closed';
 let savedScroll = 0;
-let previewFrame;
 let liveFrame;
-let sceneSize;
+let liveLoaded = false;
+let liveRendered = false;
+let modalAnimation;
+let session = 0;
+let shellAnimations = [];
+let modalOffset = { x: 0, y: 0 };
+const header = document.querySelector('.viewer-header');
 
 function lockScroll() {
   savedScroll = window.scrollY;
@@ -30,49 +36,22 @@ function unlockScroll() {
   window.scrollTo({ top: savedScroll, behavior: 'instant' });
 }
 
-function sceneTransform(rect) {
-  return `translate(${rect.left}px, ${rect.top}px) scale(${rect.width / sceneSize.width})`;
-}
-
-function modalSceneBounds() {
+function layoutModal() {
   const padding = innerWidth <= 767 ? 16 : 40;
   const toolbar = 56;
-  const scale = Math.min((innerWidth - padding * 2) / sceneSize.width, (innerHeight - padding * 2 - toolbar) / sceneSize.height);
-  const width = sceneSize.width * scale;
-  const height = sceneSize.height * scale;
+  const width = Math.min(innerWidth - padding * 2, Math.max(0, innerHeight - padding * 2 - toolbar) * 4 / 3);
+  const height = width * 3 / 4;
   const left = (innerWidth - width) / 2;
   const top = (innerHeight - height - toolbar) / 2 + toolbar;
-  const header = document.querySelector('.viewer-header');
-  Object.assign(header.style, { left: `${left}px`, top: `${top - toolbar}px`, width: `${width}px` });
-  return { left, top, width, height };
-}
-
-function moveFrame(parent, frame) {
-  // moveBefore preserves the iframe document and avoids a flash while moving it.
-  if (parent.moveBefore && frame.isConnected) parent.moveBefore(frame, null);
-  else parent.append(frame);
-}
-
-function animateModal(from, to, duration = 420) {
-  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  modalAnimation = stage.animate(
-    [{ transform: from }, { transform: to }],
-    { duration: reducedMotion ? 0 : duration, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'both' },
-  );
-  return modalAnimation;
+  Object.assign(stage.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+  Object.assign(document.querySelector('.viewer-header').style, { left: `${left}px`, top: `${top - toolbar}px`, width: `${width}px` });
 }
 
 function createFrame(snippet, interactive = false) {
   const frame = document.createElement('iframe');
   frame.title = `${snippet.title} ${interactive ? 'interactive preview' : 'thumbnail'}`;
   frame.setAttribute('sandbox', interactive ? 'allow-scripts' : '');
-  const source = !interactive && snippet.previewSrc ? snippet.previewSrc : snippet.src;
-  if (source) {
-    const url = new URL(source, location.href);
-    if (interactive && snippet.transitionPose) url.searchParams.set('pose', 'preview');
-    frame.src = url.href;
-  }
-  else frame.srcdoc = snippet.code;
+  frame.src = interactive ? snippet.src : snippet.previewSrc;
   if (!interactive) {
     frame.tabIndex = -1;
     frame.setAttribute('aria-hidden', 'true');
@@ -99,128 +78,191 @@ function downloadSnippet(snippet) {
   link.remove();
 }
 
-function requestPose(pose) {
-  if (activeSnippet?.transitionPose && viewer.hasAttribute('data-live-ready')) {
-    liveFrame.contentWindow.postMessage({ type: 'weirdos:pose', pose }, '*');
+function previewURL(snippet) {
+  const url = new URL(location.href);
+  if (snippet) url.searchParams.set('preview', snippet.id);
+  else url.searchParams.delete('preview');
+  return url;
+}
+
+async function copyPreviewLink() {
+  if (!activeSnippet) return;
+  const url = previewURL(activeSnippet).href;
+  try {
+    await navigator.clipboard.writeText(url);
+    announce('Preview link copied');
+  } catch {
+    // Fallback for browsers without the Clipboard API or clipboard permission.
+    const field = document.createElement('textarea');
+    field.value = url;
+    field.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    viewer.append(field);
+    field.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch { /* Show failure below. */ }
+    field.remove();
+    viewerShare.focus({ preventScroll: true });
+    announce(copied ? 'Preview link copied' : 'Could not copy link. Copy the address from your browser.');
   }
 }
 
-async function openSnippet(snippet, button) {
+function syncPreviewURL() {
+  const id = new URL(location.href).searchParams.get('preview');
+  const snippet = snippets.find(snippet => snippet.id === id);
+  if (modalPhase === 'open' && activeSnippet === snippet) return;
+  if (modalPhase !== 'closed') {
+    pendingRoute = true;
+    closeSnippet(false);
+    return;
+  }
+  if (snippet) openSnippet(snippet, cardButtons.get(snippet.id), false);
+}
+
+function revealLive() {
+  if (modalPhase !== 'open' || !liveLoaded || !liveRendered) return;
+  viewer.dataset.ready = '';
+  stage.setAttribute('aria-busy', 'false');
+  liveFrame.inert = false;
+}
+
+function loadLive(snippet, token) {
+  if (session !== token || modalPhase !== 'open') return;
+  const frame = createFrame(snippet, true);
+  liveFrame = frame;
+  frame.classList.add('live-layer');
+  frame.inert = true;
+  frame.addEventListener('load', () => {
+    if (session !== token || frame !== liveFrame) return;
+    liveLoaded = true;
+    revealLive();
+  }, { once: true });
+  stage.prepend(frame);
+}
+
+function openSnippet(snippet, button, updateURL = true) {
   if (modalPhase !== 'closed') return;
-  modalPhase = 'opening';
+  if (updateURL) history.pushState({ ...history.state, weirdosModal: true }, '', previewURL(snippet));
+  const token = ++session;
+  modalPhase = 'open';
   activeSnippet = snippet;
   trigger = button;
-  activeCard = button.closest('.snippet');
-  const shot = activeCard.querySelector('.shot');
-  const origin = shot.getBoundingClientRect();
-  sceneSize = { width: origin.width, height: origin.height };
+  liveLoaded = false;
+  liveRendered = false;
+  liveFrame = undefined;
+  const cardBounds = button.closest('.snippet').getBoundingClientRect();
   lockScroll();
   viewerTitle.textContent = snippet.title;
   viewerTitle.title = snippet.title;
-  viewerDownload.innerHTML = downloadIcon;
   viewerDownload.setAttribute('aria-label', `Download ${snippet.title} ZIP`);
-  previewFrame = shot.querySelector('iframe');
-  previewFrame.classList.add('preview-layer');
-  liveFrame = createFrame(snippet, true);
-  liveFrame.classList.add('live-layer');
-  liveFrame.inert = true;
-  viewer.toggleAttribute('data-pose-bridge', Boolean(snippet.transitionPose));
-  delete viewer.dataset.liveReady;
-  Object.assign(stage.style, { width: `${sceneSize.width}px`, height: `${sceneSize.height}px` });
-  stage.replaceChildren(liveFrame);
+  viewerShare.setAttribute('aria-label', `Copy ${snippet.title} preview link`);
+  delete viewer.dataset.ready;
   delete viewer.dataset.closing;
-  viewer.dataset.phase = 'opening';
+  viewer.dataset.phase = 'open';
+  stage.setAttribute('aria-busy', 'true');
+  const loader = document.createElement('div');
+  loader.className = 'viewer-loader';
+  loader.setAttribute('role', 'status');
+  loader.innerHTML = '<span class="loading-spinner" aria-hidden="true"></span><span class="loading-label">Loading preview</span>';
+  stage.replaceChildren(loader);
+  layoutModal();
   viewer.showModal();
-  moveFrame(stage, previewFrame);
-  activeCard.classList.add('is-expanded');
-  const destination = sceneTransform(modalSceneBounds());
-  stage.style.transform = destination;
-  const animation = animateModal(sceneTransform(origin), destination, 240);
-  viewer.focus();
-  try {
-    await animation.finished;
-    if (modalPhase === 'opening' && modalAnimation === animation) {
-      stage.style.transform = destination;
-      animation.cancel();
-      modalPhase = 'open';
-      viewer.dataset.phase = 'open';
-      liveFrame.inert = false;
-      requestPose('idle');
-      document.querySelector('#viewer-close').focus();
-    }
-  } catch { /* Closing can interrupt expansion. */ }
+  const bounds = stage.getBoundingClientRect();
+  modalOffset = { x: Math.max(-16, Math.min(16, (cardBounds.left + cardBounds.width / 2 - bounds.left - bounds.width / 2) * .06)), y: Math.max(-12, Math.min(12, (cardBounds.top + cardBounds.height / 2 - bounds.top - bounds.height / 2) * .06)) };
+  const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160;
+  modalAnimation = viewer.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing: 'ease-out' });
+  shellAnimations = [stage, header].map(element => element.animate([{ transform: `translate(${modalOffset.x}px, ${modalOffset.y}px)` }, { transform: 'translate(0, 0)' }], { duration, easing: 'cubic-bezier(.22, 1, .36, 1)' }));
+  document.querySelector('#viewer-close').focus();
+  // Paint the modal and loader before initializing an independent snippet.
+  requestAnimationFrame(() => requestAnimationFrame(() => loadLive(snippet, token)));
 }
 
 for (const snippet of snippets) {
   const card = document.createElement('article');
   card.className = 'snippet';
-  const shot = document.createElement('button');
-  shot.type = 'button';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'card-button';
+  cardButtons.set(snippet.id, button);
+  button.setAttribute('aria-label', `Open ${snippet.title}`);
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.addEventListener('click', () => openSnippet(snippet, button));
+  button.addEventListener('focusout', () => { delete button.dataset.restoredFocus; });
+  const shot = document.createElement('span');
   shot.className = 'shot';
-  shot.setAttribute('aria-label', `Open ${snippet.title}`);
-  shot.setAttribute('aria-haspopup', 'dialog');
   shot.append(createFrame(snippet));
-  shot.addEventListener('click', () => openSnippet(snippet, shot));
 
-  const row = document.createElement('div');
+  const row = document.createElement('span');
   row.className = 'title-row';
-  const title = document.createElement('button');
-  title.type = 'button';
+  const title = document.createElement('span');
   title.className = 'title-button';
   title.title = snippet.title;
-  title.setAttribute('aria-haspopup', 'dialog');
   const label = document.createElement('span');
   label.textContent = snippet.title;
   title.append(label);
-  title.addEventListener('click', () => openSnippet(snippet, title));
   row.append(title);
-  card.append(shot, row);
-  card.addEventListener('click', (event) => {
-    if (!event.target.closest('button')) openSnippet(snippet, shot);
-  });
+  button.append(shot, row);
+  card.append(button);
   gallery.append(card);
 }
 
+document.addEventListener('keydown', event => {
+  if (event.key === 'Tab') {
+    gallery.querySelectorAll('[data-restored-focus]').forEach(button => { delete button.dataset.restoredFocus; });
+  }
+});
+
 viewerDownload.innerHTML = downloadIcon;
 viewerDownload.addEventListener('click', () => { if (activeSnippet) downloadSnippet(activeSnippet); });
+viewerShare.addEventListener('click', copyPreviewLink);
 function cleanupPreview() {
   if (viewer.open || !activeSnippet) return;
-  previewFrame.classList.remove('preview-layer');
-  moveFrame(activeCard.querySelector('.shot'), previewFrame);
+  ++session;
+  shellAnimations.forEach(animation => animation.cancel());
+  shellAnimations = [];
   stage.replaceChildren();
   stage.removeAttribute('style');
-  previewFrame = undefined;
+  stage.removeAttribute('aria-busy');
   liveFrame = undefined;
-  sceneSize = undefined;
-  delete feedback.dataset.visible;
-  document.body.append(feedback);
-  activeCard?.classList.remove('is-expanded');
-  activeCard = undefined;
   activeSnippet = undefined;
   modalPhase = 'closed';
   delete viewer.dataset.closing;
   delete viewer.dataset.phase;
-  delete viewer.dataset.poseBridge;
-  delete viewer.dataset.liveReady;
+  delete viewer.dataset.ready;
+  delete feedback.dataset.visible;
+  document.body.append(feedback);
   unlockScroll();
-  trigger?.focus({ preventScroll: true });
+  if (trigger) {
+    trigger.dataset.restoredFocus = '';
+    trigger.focus({ preventScroll: true });
+  }
+  if (pendingRoute) {
+    pendingRoute = false;
+    syncPreviewURL();
+  }
 }
-async function closeSnippet() {
+
+async function closeSnippet(updateURL = true) {
   if (modalPhase === 'closed' || modalPhase === 'closing') return;
   modalPhase = 'closing';
-  const current = getComputedStyle(stage).transform;
+  if (updateURL !== false) {
+    if (history.state?.weirdosModal) history.back();
+    else history.replaceState(history.state, '', previewURL());
+  }
+  ++session;
+  const transforms = [stage, header].map(element => getComputedStyle(element).transform);
+  shellAnimations.forEach(animation => animation.cancel());
+  const opacity = getComputedStyle(viewer).opacity;
   modalAnimation?.cancel();
-  const origin = activeCard.querySelector('.shot').getBoundingClientRect();
   viewer.dataset.closing = '';
   viewer.dataset.phase = 'closing';
-  requestPose('preview');
-  liveFrame.inert = true;
-  viewer.focus();
+  if (liveFrame) liveFrame.inert = true;
   delete feedback.dataset.visible;
-  const animation = animateModal(current, sceneTransform(origin));
-  try { await animation.finished; } catch { /* An external dismissal can cancel motion. */ }
+  const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 120;
+  modalAnimation = viewer.animate([{ opacity }, { opacity: 0 }], { duration, easing: 'ease-in', fill: 'forwards' });
+  shellAnimations = [stage, header].map((element, index) => element.animate([{ transform: transforms[index] }, { transform: `translate(${modalOffset.x}px, ${modalOffset.y}px)` }], { duration, easing: 'ease-in', fill: 'forwards' }));
+  try { await modalAnimation.finished; } catch { /* Native dismissal can interrupt the fade. */ }
   viewer.close();
-  animation.cancel();
+  modalAnimation.cancel();
   cleanupPreview();
 }
 document.querySelector('#viewer-close').addEventListener('click', closeSnippet);
@@ -237,11 +279,13 @@ viewer.addEventListener('cancel', (event) => {
 window.addEventListener('message', (event) => {
   if (!viewer.open || event.source !== liveFrame?.contentWindow) return;
   if (event.data?.type === 'weirdos:close') closeSnippet();
-  if (event.data?.type === 'weirdos:ready' && activeSnippet?.transitionPose) {
-    viewer.dataset.liveReady = '';
-    if (modalPhase === 'open') requestPose('idle');
+  if (event.data?.type === 'weirdos:ready') {
+    liveRendered = true;
+    revealLive();
   }
 });
 window.addEventListener('resize', () => {
-  if (modalPhase === 'open') stage.style.transform = sceneTransform(modalSceneBounds());
+  if (modalPhase !== 'closed') layoutModal();
 });
+window.addEventListener('popstate', syncPreviewURL);
+syncPreviewURL();

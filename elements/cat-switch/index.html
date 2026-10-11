@@ -23,6 +23,8 @@ body { margin:0; min-height:100svh; display:grid; place-items:center; background
 .paw-boundary { position:absolute; inset:0; z-index:3; overflow:hidden; border-radius:42px; clip-path:inset(0 round 42px); contain:paint; }
 .paw { position:absolute; left:-45.36px; top:0px; width:146.88px; height:86.4px; overflow:visible; transform:translate(-145px,0px) rotate(-8deg); transform-origin:56.16px 40.8px; filter:drop-shadow(0 2px 1px #11121155); z-index:3; }
 .paw path { stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+body{cursor:default}
+.cat-switch,.cat-switch:active,.cat-switch *{cursor:pointer}
 </style>
 </head>
 <body>
@@ -63,44 +65,6 @@ body { margin:0; min-height:100svh; display:grid; place-items:center; background
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const ns='http://www.w3.org/2000/svg';
   let s,frameId=0,lastTime=0,trails=[],previousCurl=-1;
-  let poseAnimations=[],poseVersion=0,poseBusy=false;
-  async function setPose(pose,instant=false){
-    const version=++poseVersion;
-    const preview=pose==='preview';
-    const fromHand=getComputedStyle(hand).transform;
-    const fromKnob=getComputedStyle(carriage).transform;
-    const fromThumb=getComputedStyle(toggle.querySelector('.thumb')).transform;
-    poseAnimations.forEach(animation=>animation.cancel());
-    if(s)finish();
-    clearPress();
-    poseBusy=true;
-    shape(0);
-    const handTarget=preview?'translate(35px,0px) rotate(-3deg)':'translate(-145px,0px) rotate(-8deg)';
-    const knobTarget=preview?'translateX(66px)':'translateX(0)';
-    hand.style.transform=handTarget;
-    carriage.style.transform=knobTarget;
-    toggle.toggleAttribute('data-active',preview);
-    toggle.setAttribute('aria-disabled','true');
-    toggle.dataset.phase=preview?'preview':'settling';
-    const options={duration:instant||reduced.matches?0:(preview?350:200),easing:'cubic-bezier(.22,1,.36,1)',fill:'both'};
-    poseAnimations=[
-      hand.animate([{transform:fromHand},{transform:handTarget}],options),
-      carriage.animate([{transform:fromKnob},{transform:knobTarget}],options),
-      toggle.querySelector('.thumb').animate([{transform:fromThumb},{transform:preview?'scale(1.08)':'scale(1)'}],options),
-    ];
-    if(preview){
-      for(const marks of [grooves,highlights,cores]){
-        poseAnimations.push(marks.animate([{opacity:1},{opacity:0}],options));
-      }
-    }
-    try{await Promise.all(poseAnimations.map(animation=>animation.finished));}catch{return;}
-    if(version!==poseVersion)return;
-    if(preview)for(const marks of [grooves,highlights,cores])marks.replaceChildren();
-    poseAnimations.forEach(animation=>animation.cancel());
-    poseAnimations=[];
-    poseBusy=false;
-    if(!preview){toggle.removeAttribute('aria-disabled');toggle.dataset.phase='idle';}
-  }
   const random=(a,b)=>a+Math.random()*(b-a);
   const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
   const fmt=x=>x.toFixed(2);
@@ -195,7 +159,7 @@ body { margin:0; min-height:100svh; display:grid; place-items:center; background
   let activePointer=null,heldKey=null;
   const clearPress=()=>toggle.removeAttribute('data-pressed');
   toggle.addEventListener('pointerdown',event=>{
-    if(s||poseBusy||!event.isPrimary||event.button!==0)return;
+    if(s||!event.isPrimary||event.button!==0)return;
     activePointer=event.pointerId;
     toggle.setPointerCapture(event.pointerId);
     toggle.setAttribute('data-pressed','');
@@ -209,7 +173,7 @@ body { margin:0; min-height:100svh; display:grid; place-items:center; background
   toggle.addEventListener('keydown',event=>{
     if(event.key!==' '&&event.key!=='Enter')return;
     event.preventDefault();
-    if(s||poseBusy||event.repeat)return;
+    if(s||event.repeat)return;
     heldKey=event.key;toggle.setAttribute('data-pressed','');
   });
   toggle.addEventListener('keyup',event=>{
@@ -219,7 +183,7 @@ body { margin:0; min-height:100svh; display:grid; place-items:center; background
   toggle.addEventListener('blur',()=>{heldKey=null;clearPress();});
   toggle.addEventListener('click',()=>{
     clearPress();
-    if(s||poseBusy)return;
+    if(s)return;
     const pose={x:random(-11,-3),y:random(-7,2),a:random(-7,8)};
     s={pose,pressure:claws.map(()=>random(1.8,4.2)),hold:random(.09,.18),preload:random(1,4),twist:random(-5,5),arc:random(-3,3),pullStrength:random(240,330),speed:random(.9,1.08),releaseTime:random(.1,.18),phase:'reach',age:0,px:-145,py:pose.y,pvx:0,pvy:0,angle:-8+pose.a,av:0,curl:0,cv:0,knob:0,kv:random(75,115),offset:18,grabX:25};
     previousCurl=-1;
@@ -236,15 +200,12 @@ body { margin:0; min-height:100svh; display:grid; place-items:center; background
     lastTime=performance.now();frameId=requestAnimationFrame(frame);
   });
   shape(0);
-  window.addEventListener('message',event=>{
-    if(event.source!==parent||event.data?.type!=='weirdos:pose')return;
-    if(event.data.pose==='idle'||event.data.pose==='preview')setPose(event.data.pose);
+  // Shared gallery contract: publish readiness after assets and the initial paint.
+  const ready=()=>requestAnimationFrame(()=>{
+    if(parent!==window)parent.postMessage({type:'weirdos:ready'},'*');
   });
-  if(new URL(location.href).searchParams.get('pose')==='preview'){
-    setPose('preview',true).then(()=>{
-      if(parent!==window)parent.postMessage({type:'weirdos:ready'},'*');
-    });
-  }
+  if(document.readyState==='complete')ready();
+  else window.addEventListener('load',ready,{once:true});
 })();
 </script>
 <script>
