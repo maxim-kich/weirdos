@@ -22,7 +22,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 ::selection { background: var(--accent); color: var(--canvas); }
 .masthead { padding: 40px 40px 32px; }
 h1 { margin: 0; }
-.site-description { max-width: 60ch; margin: 16px 0 0; color: var(--muted); font-size: 12px; }
 .ascii-logo { display: inline-block; white-space: pre; font: 600 10px/1.1 var(--font); letter-spacing: 0; color: transparent; background: linear-gradient(var(--gradient-start), var(--gradient-end)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 main { flex: 1; padding: 0 40px 40px; }
 .site-footer { padding: 0 40px 24px; font-size: 12px; }
