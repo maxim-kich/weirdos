@@ -1,6 +1,6 @@
 # Adding a weirdo
 
-The user can drop a folder into this project and ask an agent to add it. The agent handles the steps below. `isSwtchCatDisabled` in `elements/cat-switch/` is the working reference.
+The user can drop a folder into this project and ask an agent to add it. The agent handles the steps below. `isSwitchCatDisabled` in `elements/cat-switch/` is the working reference.
 
 ## 1. Import the folder
 

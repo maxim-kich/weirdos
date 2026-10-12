@@ -1,11 +1,11 @@
 // Add one entry per element folder. Read WEIRDO_GUIDE.md before integrating.
 export const snippets = [{
-  id: 'isSwtchCatDisabled',
-  title: 'isSwtchCatDisabled',
+  id: 'isSwitchCatDisabled',
+  title: 'isSwitchCatDisabled',
   src: './elements/cat-switch/index.html',
   previewSrc: './elements/cat-switch/preview.html',
   readyMessage: true,
-  download: './downloads/isSwtchCatDisabled.zip',
+  download: './downloads/isSwitchCatDisabled.zip',
 }, {
   id: 'swipeActionMmmmm',
   title: 'swipeActionMmmmm',
