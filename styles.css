@@ -82,9 +82,15 @@ dialog[data-phase="open"]:not([data-ready]) .viewer-loader { visibility:visible;
 .feedback[data-visible] { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 767px) {
   .masthead { padding: 24px 16px; }
-  .ascii-logo { font-size: clamp(6px, 1.6vw, 10px); }
+  .ascii-logo { display: block; width: max-content; max-width: 100%; font-size: clamp(6px, 1.6vw, 10px); line-height: 1.1; }
+  .ascii-logo span { display: inline-block; width: 1ch; text-align: center; }
   main { padding: 0 16px 24px; }
   .site-footer { padding: 0 16px 24px; }
   .gallery { grid-template-columns: minmax(0, 1fr); gap: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } dialog::backdrop, .loading-spinner { animation: none; } }
+
+.icon-button[hidden] { display: none; }
+.desktop-preferred-hint { position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 1; display: none; margin: 0; color: var(--text); font-size: 12px; text-align: center; text-shadow: 0 1px 8px var(--canvas); pointer-events: none; visibility: hidden; }
+dialog[data-ready] .desktop-preferred-hint { visibility: visible; }
+@media (max-width: 767px), (hover: none) and (pointer: coarse) { .desktop-preferred-hint { display: block; } }
