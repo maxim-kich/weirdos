@@ -44,6 +44,8 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   const scene=root.querySelector('.depth-scene'), solid=root.querySelector('.depth-solid'), face=root.querySelector('.depth-face');
   const layers=root.querySelector('.depth-layers'),canvas=root.querySelector('.depth-material'),ctx=canvas.getContext('2d');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  const autoDemo=new URLSearchParams(location.search).get('autoDemo')==='1';
+  let demoTime=0;
   const materialStretchDistance=180;
   const current={depth:0,rx:0,ry:0,x:0,y:0,sx:1,sy:1,catch:0,press:0},target={...current},velocity={};
   for(const key of Object.keys(current))velocity[key]=0;
@@ -207,6 +209,14 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
   }
   function tick(time){
     const dt=previous?Math.min(.035,(time-previous)/1000):1/60;previous=time;
+    if(autoDemo&&!reduced.matches){
+      demoTime+=dt;
+      const directions=[[1,-.65],[-1,-.5],[-.75,.8],[.9,.75]];
+      const phase=demoTime%3, direction=directions[Math.floor(demoTime/3)%directions.length];
+      const amount=phase<2.4?Math.sin(Math.PI*phase/2.4):0;
+      pointer=amount>.01?{x:box.width/2+direction[0]*Math.min(145,box.width*.28)*amount,y:box.height/2+direction[1]*Math.min(110,box.height*.3)*amount}:null;
+      updateTarget();
+    }
     let moving=false;
     for(const key of Object.keys(current)){
       if(reduced.matches){current[key]=target[key];velocity[key]=0;continue;}
@@ -215,10 +225,10 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
       for(let i=0;i<steps;i++){velocity[key]+=(omega*omega*(target[key]-current[key])-2*damping*omega*velocity[key])*h;current[key]+=velocity[key]*h;}
       if(Math.abs(target[key]-current[key])<.001&&Math.abs(velocity[key])<.01){current[key]=target[key];velocity[key]=0;}else moving=true;
     }
-    draw();if(moving)raf=requestAnimationFrame(tick);else{raf=0;previous=0;}
+    draw();if(moving||(autoDemo&&!reduced.matches))raf=requestAnimationFrame(tick);else{raf=0;previous=0;}
   }
   function wake(){if(!raf)raf=requestAnimationFrame(tick);}
-  function followPointer(event){pointer={x:event.clientX-box.left,y:event.clientY-box.top};updateTarget();wake();}
+  function followPointer(event){if(autoDemo)return;pointer={x:event.clientX-box.left,y:event.clientY-box.top};updateTarget();wake();}
   scene.addEventListener('pointermove',followPointer);
   function release(){
     if(!reduced.matches){releaseUntil=performance.now()+1200;releaseDamping=pressed?.72:.48;}

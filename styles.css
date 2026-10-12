@@ -45,6 +45,8 @@ iframe { display: block; width: 100%; height: 100%; border: 0; }
 .title-button { flex: 1; min-width: 0; text-align: left; padding: 8px 0; border: 0; background: transparent; transition: color 150ms; }
 .title-button:hover { color: var(--accent); }
 .title-button span, #viewer-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-icons { display: flex; flex: none; align-items: center; gap: 8px; color: var(--muted); pointer-events: none; }
+.device-icons svg { width: 16px; height: 16px; }
 .icon-button { flex: 0 0 40px; display: grid; place-items: center; width: 40px; height: 40px; padding: 10px; border: 0; border-radius: 4px; color: var(--muted); background: transparent; transition: color 150ms, background 150ms; }
 .icon-button svg { width: 18px; height: 18px; pointer-events:none; }
 .icon-button:hover { color: var(--text); background: var(--surface); }
@@ -62,6 +64,12 @@ dialog::backdrop { cursor: default; background: rgb(17 18 17 / 65%); backdrop-fi
 .viewer-stage iframe { position: absolute; inset: 0; transition: opacity 160ms ease; }
 .live-layer { opacity: 0; pointer-events: none; }
 dialog[data-ready] .live-layer { opacity: 1; pointer-events: auto; }
+dialog[data-desktop-only] .live-layer { filter: blur(6px); pointer-events: none; }
+dialog[data-desktop-only][data-ready] .live-layer { opacity: .55; }
+.desktop-only-notice { position: absolute; inset: 0; z-index: 1; display: none; align-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; background: rgb(17 18 17 / 30%); pointer-events: none; }
+.desktop-only-notice svg { width: 28px; height: 28px; }
+.desktop-only-notice p { max-width: 28ch; margin: 0; text-shadow: 0 1px 8px var(--canvas); }
+dialog[data-desktop-only][data-ready] .desktop-only-notice { display: grid; }
 .viewer-loader { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; display:grid; place-items:center; width:44px; height:44px; border-radius:50%; background:rgb(17 18 17 / 65%); color:var(--text); visibility:hidden; pointer-events:none; }
 dialog[data-phase="open"]:not([data-ready]) .viewer-loader { visibility:visible; }
 .loading-spinner { width:24px; height:24px; border:2px solid rgb(207 218 205 / 25%); border-top-color:var(--text); border-radius:50%; animation:preview-spin 700ms linear infinite; }

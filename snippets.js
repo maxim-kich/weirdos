@@ -15,6 +15,7 @@ export const snippets = [{
   download: './downloads/swipeActionMmmmm.zip',
 }, {
   id: 'isButtonUltimate',
+  desktopOnly: true,
   title: 'isButtonUltimate',
   src: './elements/button-ultimate/index.html',
   previewSrc: './elements/button-ultimate/preview.html',
