@@ -8,6 +8,7 @@ export const snippets = [{
   download: './downloads/isSwitchCatDisabled.zip',
 }, {
   id: 'swipeActionMmmmm',
+  mobilePreferred: true,
   title: 'swipeActionMmmmm',
   src: './elements/skin-swipe/index.html',
   previewSrc: './elements/skin-swipe/preview.html',

@@ -70,6 +70,9 @@ dialog[data-desktop-only][data-ready] .live-layer { opacity: .55; }
 .desktop-only-notice svg { width: 28px; height: 28px; }
 .desktop-only-notice p { max-width: 28ch; margin: 0; text-shadow: 0 1px 8px var(--canvas); }
 dialog[data-desktop-only][data-ready] .desktop-only-notice { display: grid; }
+.mobile-preferred-hint { position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 1; margin: 0; color: var(--muted); font-size: 12px; text-align: center; pointer-events: none; visibility: hidden; }
+dialog[data-ready] .mobile-preferred-hint { visibility: visible; }
+@media (max-width: 767px), (hover: none) and (pointer: coarse) { .mobile-preferred-hint { display: none; } }
 .viewer-loader { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; display:grid; place-items:center; width:44px; height:44px; border-radius:50%; background:rgb(17 18 17 / 65%); color:var(--text); visibility:hidden; pointer-events:none; }
 dialog[data-phase="open"]:not([data-ready]) .viewer-loader { visibility:visible; }
 .loading-spinner { width:24px; height:24px; border:2px solid rgb(207 218 205 / 25%); border-top-color:var(--text); border-radius:50%; animation:preview-spin 700ms linear infinite; }

@@ -178,6 +178,12 @@ function openSnippet(snippet, button, updateURL = true) {
   notice.className = 'desktop-only-notice';
   notice.innerHTML = `${desktopIcon}<p>This component is desktop only.</p>`;
   stage.replaceChildren(loader, notice);
+  if (snippet.mobilePreferred) {
+    const hint = document.createElement('p');
+    hint.className = 'mobile-preferred-hint';
+    hint.textContent = 'Best for mobile';
+    stage.append(hint);
+  }
   layoutModal();
   viewer.showModal();
   const bounds = stage.getBoundingClientRect();
@@ -197,7 +203,7 @@ for (const snippet of snippets) {
   button.type = 'button';
   button.className = 'card-button';
   cardButtons.set(snippet.id, button);
-  button.setAttribute('aria-label', `Open ${snippet.title}, ${snippet.desktopOnly ? 'desktop only' : 'desktop and mobile'}`);
+  button.setAttribute('aria-label', `Open ${snippet.title}, ${snippet.desktopOnly ? 'desktop only' : snippet.mobilePreferred ? 'best for mobile, also works on desktop' : 'desktop and mobile'}`);
   button.setAttribute('aria-haspopup', 'dialog');
   button.addEventListener('click', () => openSnippet(snippet, button));
   button.addEventListener('focusout', () => { delete button.dataset.restoredFocus; });
@@ -215,9 +221,9 @@ for (const snippet of snippets) {
   title.append(label);
   const devices = document.createElement('span');
   devices.className = 'device-icons';
-  devices.title = snippet.desktopOnly ? 'Desktop only' : 'Desktop and mobile';
+  devices.title = snippet.desktopOnly ? 'Desktop only' : snippet.mobilePreferred ? 'Best for mobile; also works on desktop' : 'Desktop and mobile';
   devices.setAttribute('aria-hidden', 'true');
-  devices.innerHTML = desktopIcon + (snippet.desktopOnly ? '' : mobileIcon);
+  devices.innerHTML = (snippet.mobilePreferred ? '' : desktopIcon) + (snippet.desktopOnly ? '' : mobileIcon);
   row.append(title, devices);
   button.append(shot, row);
   card.append(button);
