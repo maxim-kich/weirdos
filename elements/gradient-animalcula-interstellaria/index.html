@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>--gradient-animalcula-interstellaria</title>
+<style>
+:root{color-scheme:dark;font:13px/1.5 system-ui,sans-serif;color:#edf1ff;background:#03102b}
+*{box-sizing:border-box}body{margin:0;overflow:hidden}canvas{touch-action:none}canvas,#fallback{position:fixed;inset:0;width:100%;height:100%;display:block}#fallback{background:radial-gradient(ellipse at 85% 28%,#da441e90,transparent 45%),radial-gradient(ellipse at 32% 55%,#a1dff060,transparent 40%),radial-gradient(ellipse at 60% 70%,#d99b3b70,transparent 50%),#03102b;display:none}
+#restart{position:fixed;right:16px;top:16px;width:40px;height:40px;padding:10px;color:#edf1ff;background:#101d36b3;border:1px solid #ffffff26;border-radius:8px;cursor:pointer}#restart svg{width:18px;height:18px;pointer-events:none}#restart:focus-visible{outline:2px solid #71f5e5;outline-offset:3px}html[data-embedded] #restart{display:none}
+#carousel{position:fixed;inset:0;z-index:2;pointer-events:none}#carousel button{position:absolute;top:50%;display:grid;place-items:center;width:44px;height:52px;padding:10px;border:1px solid #ffffff18;border-radius:8px;background:#08132870;color:#edf1ff;cursor:pointer;pointer-events:auto;transform:translateY(-50%)}#previous{left:12px}#next{right:12px}#carousel button:hover{background:#081328c0}#carousel button:focus-visible{outline:2px solid #71f5e5;outline-offset:3px}#carousel svg{width:22px;height:22px;pointer-events:none}#scene-transition{pointer-events:none}
+
+</style>
+</head>
+<body>
+<div id="fallback" aria-hidden="true"></div>
+<canvas id="scene" aria-label="Interactive nebula with warm gas, cool illuminated interiors, and moving cosmic dust"></canvas>
+<button id="restart" aria-label="Restart scene" title="Restart scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg></button>
+<nav id="carousel" aria-label="Nebula scenes"><button id="previous" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button><button id="next" aria-label="Next scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button></nav>
+<!-- Each entry is an independent glow layer. Position is in percent; size and
+     intensity are multipliers. Saved exports embed the configuration and all five volume densities. -->
+
+<script>
+'use strict';
+const defaults={layers:[{name:'Ember gas',color:'#da441e',x:0,y:0,size:1,intensity:1},{name:'Ionized core',color:'#a1dff0',x:0,y:0,size:1,intensity:.8},{name:'Cold haze',color:'#153f72',x:0,y:0,size:1,intensity:.85},{name:'Dust veil',color:'#70334e',x:0,y:0,size:1,intensity:.8},{name:'Amber edges',color:'#d99b3b',x:0,y:0,size:1,intensity:1}],backdrop:'#020611',response:7,diffusion:45,grain:66,motion:true,quality:1};
+let config={"layers":[{"name":"Ember gas","color":"#da441e","x":0,"y":0,"size":1,"intensity":1},{"name":"Ionized core","color":"#a1dff0","x":0,"y":0,"size":1,"intensity":0.8},{"name":"Cold haze","color":"#153f72","x":0,"y":0,"size":1,"intensity":0.85},{"name":"Dust veil","color":"#70334e","x":0,"y":0,"size":1,"intensity":0.8},{"name":"Amber edges","color":"#d99b3b","x":0,"y":0,"size":1,"intensity":1}],"backdrop":"#020611","response":7,"diffusion":45,"grain":66,"motion":true,"quality":1};
+const $=s=>document.querySelector(s),canvas=$('#scene'),reduce=matchMedia('(prefers-reduced-motion: reduce)');
+const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
+const originalConfig=structuredClone(config);
+let sceneIndex=0;
+const palettes=[null,['#9d4634','#a9e0ed','#133d50','#261522','#dc8064'],['#bc365f','#ead0df','#634776','#331126','#e97693'],['#b18740','#b6eeff','#2d727b','#213c34','#bce5b1']];
+function sceneConfig(index){const next=structuredClone(originalConfig);if(palettes[index])next.layers.forEach((layer,i)=>layer.color=palettes[index][i]);return next;}
+let slideAnimations=[];
+function clearSlide(){slideAnimations.forEach(animation=>animation.cancel());slideAnimations=[];$('#scene-transition')?.remove();}
+function selectScene(index){
+ const direction=index>sceneIndex?1:-1;
+ clearSlide();
+ let outgoing;
+ if(!reduce.matches&&gl&&!gl.isContextLost()&&canvas.style.display!=='none'){
+  draw();outgoing=document.createElement('canvas');outgoing.id='scene-transition';outgoing.setAttribute('aria-hidden','true');outgoing.width=canvas.width;outgoing.height=canvas.height;outgoing.getContext('2d').drawImage(canvas,0,0);
+ }
+ sceneIndex=((index%4)+4)%4;restart();
+ if(outgoing){
+  draw();canvas.after(outgoing);
+  const options={duration:420,easing:'cubic-bezier(.4,0,.2,1)'};
+  const animations=[outgoing.animate([{transform:'translateX(0)'},{transform:`translateX(${-direction*100}%)`}],options),canvas.animate([{transform:`translateX(${direction*100}%)`},{transform:'translateX(0)'}],options)];
+  slideAnimations=animations;
+  Promise.all(animations.map(animation=>animation.finished)).then(()=>{outgoing.remove();if(slideAnimations===animations)slideAnimations=[];}).catch(()=>outgoing.remove());
+ }
+}
+$('#previous').addEventListener('click',()=>selectScene(sceneIndex-1));
+$('#next').addEventListener('click',()=>selectScene(sceneIndex+1));
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();selectScene(sceneIndex+(e.key==='ArrowRight'?1:-1));}});
+if(parent!==window)document.documentElement.dataset.embedded='';
+let firstFrameSize=null,startupAttempts=0;
+let ready=false,activeTouch=null,touchStart=null,touchDragged=false,suppressClickUntil=0;
+function signalReady(rendered=true){if(ready)return;ready=true;if(rendered)canvas.dataset.rendered='true';if(parent!==window)parent.postMessage({type:'weirdos:ready'},'*');}
+let render=()=>{};
+// Five separate density channels live in a 96 × 96 × 24 volume. Slices are
+// packed into a texture atlas so the standalone file also works in WebGL 1.
+const SCENE_SCALE=1.16;
+const SIZE=96,DEPTH=24,COLS=6,ROWS=4,AW=SIZE*COLS,AH=SIZE*ROWS;
+const vertex=`attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`;
+const common=`precision highp float;
+uniform sampler2D field;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);}
+float fbm(vec2 p){return noise(p)*.56+noise(p*2.03+7.)*.28+noise(p*4.07+13.)*.12+noise(p*8.1)*.04;}
+float bell(float d,float w){return exp(-d*d/(w*w));}
+vec2 sliceUV(vec2 p,float z){return (vec2(mod(z,6.),floor(z/6.))*96.+clamp(p,0.,1.)*95.+.5)/vec2(576.,384.);}
+vec4 volume(sampler2D tex,vec3 p){float z=clamp(p.z,0.,1.)*23.;float lo=floor(z);return mix(texture2D(tex,sliceUV(p.xy,lo)),texture2D(tex,sliceUV(p.xy,min(23.,lo+1.))),fract(z));}
+vec3 voxel(){vec2 pixel=gl_FragCoord.xy-.5;vec2 tile=floor(pixel/96.);return vec3(mod(pixel,96.)/95.,(tile.y*6.+tile.x)/23.);}
+`;
+const initial=common+`uniform float bank,scene;void main(){
+vec3 v=voxel();vec2 q=v.xy;
+vec2 n=vec2(fbm(q*4.3+v.z*.6),fbm(q*4.3+13.-v.z*.5));
+q+=(n-.5)*.19;
+vec2 offset=q-.5;
+float t=dot(offset,normalize(vec2(.58,.82)));
+float w=dot(offset,normalize(vec2(.82,-.58)));
+w+=.045*sin(t*14.+v.z*3.);
+// Two irregular, partially hollow gas lobes meet along a cool luminous seam.
+float top=length(vec3((w+.025)/.22,(t+.22)/.24,(v.z-.95)/.95));
+float bottom=length(vec3((w-.045)/.26,(t-.22)/.30,(v.z-.53)/.96));
+float shell=bell(top-.82,.22)+bell(bottom-.80,.23);
+float body=exp(-top*top*1.1)+exp(-bottom*bottom*1.2);
+float filaments=fbm(q*11.+n*3.+v.z*.8);
+float clumps=smoothstep(.27,.73,fbm(q*5.5+n*2.));
+float ember=(shell*.63+body*.16)*(.22+clumps*.90)*(.70+filaments*.5);
+float corePath=.07*sin(t*10.+.5)+.028*cos(t*19.);
+float ice=bell(w-corePath,.043)*bell(t,.34)*bell(v.z-.40,.23)*(.32+.65*clumps);
+ice+=bell(top-.74,.060)*bell(t+.16,.15)*bell(v.z-.35,.22)*.35;
+float blue=body*.20*bell(v.z-.70,.30)+bell(w+.12,.13)*bell(t,.35)*bell(v.z-.63,.27)*.16;
+float dust=(shell*.40+body*.15)*smoothstep(.39,.72,fbm(q*7.5+vec2(21.,5.)))*bell(v.z-.25,.29);
+dust+=bell(w-.055,.065)*bell(t-.10,.20)*bell(v.z-.22,.20)*.65;
+float amber=bell(bottom-.78,.12)*bell(w-.10,.18)*bell(v.z-.44,.28)*(.20+.7*clumps);
+amber+=bell(top-.85,.15)*bell(t+.25,.22)*bell(v.z-.42,.3)*.22;
+// Reference-inspired volumes share the same moving-matter simulation.
+if(scene>.5&&scene<1.5){
+ vec2 h=q-vec2(.50,.55);
+ float neck=bell(h.x-.10*sin(h.y*6.),.16)*bell(h.y-.03,.38);
+ float crown=bell(length((q-vec2(.44,.26))/vec2(.28,.18))-.82,.26);
+ float hollow=bell(length((q-vec2(.40,.39))/vec2(.16,.20)),.85);
+ float fog=bell(q.y-.76,.16)*(.3+.7*clumps);
+ float cloud=max(0.,neck+crown*.75-hollow*.85);
+ ember=(cloud*.65+fog*.22)*(.4+filaments*.65)*bell(v.z-.55,.34);
+ ice=(crown*.34+fog*.24)*bell(v.z-.35,.24)*(.4+clumps*.6);
+ blue=(cloud*.1+fog*.16)*bell(v.z-.72,.3);
+ dust=cloud*.5*bell(v.z-.22,.18);
+ amber=cloud*.15*clumps*bell(v.z-.50,.27);
+}else if(scene>1.5&&scene<2.5){
+ float path=.5+.11*sin(q.y*10.)+.045*sin(q.y*23.);
+ float ribbon=bell(q.x-path,.16)*bell(q.y-.50,.43);
+ float branches=bell(q.x-path-.18*sin(q.y*17.),.045)*bell(q.y-.5,.40);
+ float lace=smoothstep(.30,.74,fbm(q*12.+n*2.+v.z));
+ ember=(ribbon*.40+branches*.58)*(.20+lace*.9)*bell(v.z-.62,.35);
+ ice=ribbon*bell(q.y-.59,.19)*(.25+clumps*.6)*bell(v.z-.37,.22);
+ blue=ribbon*.22*bell(v.z-.72,.25);
+ dust=bell(q.x-path-.035,.045)*ribbon*.85*bell(v.z-.25,.20);
+ amber=branches*.28*clumps*bell(v.z-.45,.25);
+}else if(scene>2.5){
+ vec2 c=q-.5;float radius=length(vec2(c.x*.86+c.y*.20,c.y*1.12-c.x*.22));
+ float cloud=bell(radius,.32),rim=bell(radius-.29,.08);
+ float threads=pow(.5+.5*sin(atan(c.y,c.x)*19.+fbm(q*9.+v.z)*15.+radius*38.),4.);
+ ember=(rim*.52+cloud*.12)*(.18+threads*.85)*bell(v.z-.52,.33);
+ ice=cloud*.6*bell(v.z-.42,.26)*(.4+clumps*.55);
+ blue=cloud*.3*bell(v.z-.70,.25);
+ dust=cloud*clumps*.12*bell(v.z-.22,.22);
+ amber=(rim*.48+cloud*.10)*threads*bell(v.z-.38,.27);
+}
+if(bank<.5)gl_FragColor=vec4(ember,ice,blue,dust);
+else gl_FragColor=vec4(amber,0.,0.,0.);
+
+}`;
+const fragment=common+`
+uniform sampler2D rose;uniform vec2 resolution,camera;uniform vec3 background;
+uniform float grain,sharedTransform;uniform vec3 color0,color1,color2,color3,color4;uniform vec4 layer0,layer1,layer2,layer3,layer4;
+vec3 local(vec3 p,vec4 l){return vec3((p.xy-.5-l.xy)/l.z+.5,p.z);}
+void main(){vec2 uv=gl_FragCoord.xy/resolution;uv.y=1.-uv.y;
+vec3 light=vec3(0.);float transmission=1.;
+// Fine cloud detail is evaluated once per ray, rather than at every slice.
+
+for(int i=0;i<20;i++){
+ float z=(float(i)+.5)/20.;
+ // Perspective rays cross distinct depth slices, with a little view orbit.
+ vec3 p=vec3(.5+(uv-.5)/1.16*(1.+.20*(z-.5))+camera*(z-.5)*.035,z);
+ vec4 base=volume(field,local(p,layer0));
+ float c=base.r*layer0.w;
+ float ice=base.g*layer1.w;
+ float b=base.b*layer2.w*.70;
+ float v=base.a*layer3.w*.80;
+ if(sharedTransform<.5){
+  ice=volume(field,local(p,layer1)).g*layer1.w;
+  b=volume(field,local(p,layer2)).b*layer2.w*.70;
+  v=volume(field,local(p,layer3)).a*layer3.w*.80;
+ }
+ float pink=volume(rose,local(p,layer4)).r*layer4.w;
+ c=pow(c,1.18);pink=pow(pink,1.12);
+
+ c*=1.08;pink*=1.08;
+ float density=c+ice+b+pink+v*2.4;
+ vec3 emission=color0*c+color1*ice+color2*b+color3*v*.07+color4*pink;
+ float alpha=1.-exp(-density*.13);
+ light+=transmission*emission*.22;
+ transmission*=1.-alpha;
+}
+vec3 col=background+light;
+col=1.-exp(-col*1.85);
+col*=1.-.12*smoothstep(.35,.8,length(uv-.5));
+col+=(hash(gl_FragCoord.xy)-.5)*grain*.065;
+gl_FragColor=vec4(clamp(col,0.,1.),1.);
+}`;
+// Lagrangian matter: every wisp and mote keeps its own 3D position and momentum.
+const OBJECT_COUNT=5600,OBJECT_STRIDE=9;
+const objects=new Float32Array(OBJECT_COUNT*OBJECT_STRIDE);
+
+let objectBuffer,objectEnergy=0;
+// Reconstruct the five 3D gas densities from the same moving material points.
+// These smooth kernels are the cloud itself; there is no decorative point pass.
+let depositProgram;
+const masses=new Float32Array(5);
+const depositVertex=`precision highp float;
+attribute vec3 pos,meta;
+uniform float slice,bank,spread;uniform vec4 masses0123;uniform float mass4;
+varying vec4 channel;varying float zWeight;varying vec2 filament;
+void main(){
+ float layer=meta.x;float mass=masses0123.r;
+ channel=vec4(1.,0.,0.,0.);
+ if(layer>.5){channel=vec4(0.,1.,0.,0.);mass=masses0123.g;}
+ if(layer>1.5){channel=vec4(0.,0.,1.,0.);mass=masses0123.b;}
+ if(layer>2.5){channel=vec4(0.,0.,0.,1.);mass=masses0123.a;}
+ if(layer>3.5){channel=vec4(1.,0.,0.,0.);mass=mass4;}
+ float sigma=(.014+meta.y*.011)*spread*clamp(meta.z,1.,1.7);
+ vec2 center=mix(vec2(.34,.30),vec2(.66,.72),smoothstep(.38,.62,pos.y));
+ vec2 radial=pos.xy-center;filament=normalize(vec2(-radial.y,radial.x)+vec2(.001));
+ float dz=(slice/23.-pos.z)/(sigma*2.5);
+ bool visible=(bank<.5&&layer<3.5)||(bank>.5&&layer>3.5);
+ if(!visible||abs(dz)>3.){gl_Position=vec4(3.,3.,0.,1.);gl_PointSize=1.;zWeight=0.;}
+ else{gl_Position=vec4(pos.xy*2.-1.,0.,1.);gl_PointSize=6.*sigma*96.*2.;zWeight=exp(-dz*dz)*mass/(5.568328*sigma*sigma*sigma*2.5*1.2);}
+}`;
+const depositFragment=`precision highp float;
+varying vec4 channel;varying float zWeight;varying vec2 filament;
+void main(){vec2 q=(gl_PointCoord-.5)*12.;vec2 p=vec2(dot(q,filament),dot(q,vec2(-filament.y,filament.x)))/vec2(2.,.6);float r2=dot(p,p);if(r2>9.)discard;gl_FragColor=channel*exp(-r2)*zWeight;}`;
+function rebuildMatter(){
+ gl.useProgram(depositProgram);gl.bindBuffer(gl.ARRAY_BUFFER,objectBuffer);gl.bufferData(gl.ARRAY_BUFFER,objects,gl.DYNAMIC_DRAW);
+ const attrs=['pos','meta'].map((name,i)=>{const a=gl.getAttribLocation(depositProgram,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,36,i===0?0:24);return a;});
+ gl.uniform4fv(uniform(depositProgram,'masses0123'),masses.subarray(0,4));gl.uniform1f(uniform(depositProgram,'mass4'),masses[4]);
+ gl.uniform1f(uniform(depositProgram,'spread'),1.+config.diffusion*.004);
+ gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.enable(gl.SCISSOR_TEST);
+ for(let bank=0;bank<2;bank++){
+  gl.bindFramebuffer(gl.FRAMEBUFFER,sets[current][bank].fb);gl.scissor(0,0,AW,AH);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform1f(uniform(depositProgram,'bank'),bank);
+  for(let z=0;z<DEPTH;z++){const x=z%COLS*SIZE,y=Math.floor(z/COLS)*SIZE;gl.viewport(x,y,SIZE,SIZE);gl.scissor(x,y,SIZE,SIZE);gl.uniform1f(uniform(depositProgram,'slice'),z);gl.drawArrays(gl.POINTS,0,OBJECT_COUNT);}
+ }
+ gl.disable(gl.SCISSOR_TEST);gl.disable(gl.BLEND);attrs.forEach(a=>gl.disableVertexAttribArray(a));gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+}
+
+function initObjects(){
+ const raw=sets[current].map(item=>{const data=floatStorage?new Float32Array(AW*AH*4):new Uint8Array(AW*AH*4);gl.bindFramebuffer(gl.FRAMEBUFFER,item.fb);gl.readPixels(0,0,AW,AH,gl.RGBA,floatStorage?gl.FLOAT:gl.UNSIGNED_BYTE,data);return data;});
+ masses.fill(0);
+ for(let pixel=0;pixel<AW*AH;pixel++){const i=pixel*4;for(let layer=0;layer<5;layer++)masses[layer]+=raw[layer===4?1:0][i+(layer===4?0:layer)]/(floatStorage?1:255);}
+ for(let layer=0;layer<5;layer++)masses[layer]/=AW*AH*(OBJECT_COUNT/5);
+ if(config.masses&&config.masses.length===5)masses.set(config.masses);
+ let state=872431;const rand=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
+ for(let i=0;i<OBJECT_COUNT;i++){const offset=i*OBJECT_STRIDE,layer=i%5;let x,y,z;
+  for(let attempt=0;attempt<120;attempt++){x=rand();y=rand();z=.04+rand()*.92;const slice=Math.round(z*23),px=Math.round(x*95),py=Math.round(y*95),index=((Math.floor(slice/6)*96+py)*AW+(slice%6)*96+px)*4;const density=raw[layer===4?1:0][index+(layer===4?0:layer)]/(floatStorage?1:255);if(rand()<density*2.)break;}
+  const seed=rand();objects.set([x,y,z,0,0,0,layer,seed,1],offset);
+ }
+ objectEnergy=0;gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+}
+function exportObjects(){const bytes=new Uint8Array(objects.buffer);let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(str);}
+function stepObjects(dt){const ax=innerWidth/Math.min(innerWidth,innerHeight),ay=innerHeight/Math.min(innerWidth,innerHeight);objectEnergy=0;
+ for(let i=0;i<OBJECT_COUNT;i++){const o=i*9,x=objects[o],y=objects[o+1],z=objects[o+2],seed=objects[o+7];let fx=0,fy=0,fz=0;
+  for(const s of strokes){if(s.strength<.001)continue;const rx=(x-s.x)*ax,ry=(y-s.y)*ay,rz=(z-s.z)*.30,r2=rx*rx+ry*ry+rz*rz;if(r2>.09)continue;const fall=Math.exp(-r2/.035)*s.strength;
+   fx+=(s.dx-rz*s.dx*3.-ry*(.3+seed)*Math.hypot(s.dx,s.dy))*fall*5.;
+   fy+=(s.dy-rz*s.dy*3.+rx*(.3+seed)*Math.hypot(s.dx,s.dy))*fall*5.;
+   fz+=(rx*s.dx+ry*s.dy)*fall*15.;
+  }
+  for(const ripple of ripples){const rx=(x-ripple.x)*ax,ry=(y-ripple.y)*ay,rz=(z-ripple.z)*.45,distance=Math.hypot(rx,ry,rz),radius=.012+ripple.age*.30;
+   const wave=Math.exp(-(((distance-radius)/.045)**2))-.15*Math.exp(-(((distance-radius+.065)/.052)**2));
+   const force=wave*Math.exp(-ripple.age*.65)*4.8*(.65+config.response/100)/Math.max(distance,.004);
+   fx+=rx/ax*force;fy+=ry/ay*force;fz+=rz*.40*force;
+  }
+  const drag=Math.exp(-dt*(objects[o+8]>.5?1.6:2.));
+  const drift=config.motion?.018:0;
+  objects[o+3]=(objects[o+3]+fx*dt)*drag+Math.sin(y*9.+z*6.+elapsed*.10+seed*2.)*drift*dt;
+  objects[o+4]=(objects[o+4]+fy*dt)*drag+Math.cos(x*8.-z*5.-elapsed*.08+seed*2.)*drift*dt;
+  objects[o+5]=(objects[o+5]+fz*dt)*drag+Math.sin(x*6.+y*5.+seed*3.)*drift*dt;
+  const speed=Math.hypot(objects[o+3],objects[o+4],objects[o+5]);if(speed>.7){for(let k=3;k<6;k++)objects[o+k]*=.7/speed;}
+  for(let k=0;k<3;k++){objects[o+k]+=objects[o+k+3]*dt;if(objects[o+k]<.015){objects[o+k]=.015;objects[o+k+3]=Math.abs(objects[o+k+3])*.35;}if(objects[o+k]>.985){objects[o+k]=.985;objects[o+k+3]=-Math.abs(objects[o+k+3])*.35;}}
+  objects[o+8]=Math.min(1.7,objects[o+8]+config.diffusion/100*speed*dt*.6);
+  objectEnergy+=speed;
+ }
+}
+
+let floatStorage=false;
+let gl,program,initProgram,quad,sets=[],current=0,raf=0,last=0,elapsed=0,tick=0,strokes=[],ripples=[],previousPointer=null,mx=0,my=0,tx=0,ty=0,energy=0;
+let pointerTarget=null,pointerFiltered=null;
+function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
+function makeProgram(source,vert=vertex){const p=gl.createProgram();gl.attachShader(p,shader(gl.VERTEX_SHADER,vert));gl.attachShader(p,shader(gl.FRAGMENT_SHADER,source));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));return p;}
+const uniformCache=new WeakMap();
+const uniform=(p,name)=>{let cache=uniformCache.get(p);if(!cache){cache=new Map();uniformCache.set(p,cache);}if(!cache.has(name))cache.set(name,gl.getUniformLocation(p,name));return cache.get(name);};
+function use(p){gl.useProgram(p);gl.bindBuffer(gl.ARRAY_BUFFER,quad);const a=gl.getAttribLocation(p,'a');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);}
+function texture(){const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,AW,AH,0,gl.RGBA,floatStorage?gl.FLOAT:gl.UNSIGNED_BYTE,null);const fb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw Error('Volume framebuffer unavailable');return {tex,fb};}
+function bind(tex,unit){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,tex);}
+function reform(){if(!gl)return;strokes=[];ripples=[];energy=0;pointerTarget=pointerFiltered=null;previousPointer=null;current=0;use(initProgram);gl.uniform1f(uniform(initProgram,'scene'),sceneIndex);gl.viewport(0,0,AW,AH);sets.forEach(set=>set.forEach((item,bank)=>{gl.bindFramebuffer(gl.FRAMEBUFFER,item.fb);gl.uniform1f(uniform(initProgram,'bank'),bank);gl.drawArrays(gl.TRIANGLES,0,6);}));gl.bindFramebuffer(gl.FRAMEBUFFER,null);initObjects();}
+function setup(){gl=canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,powerPreference:'high-performance'});if(!gl)throw Error('WebGL unavailable');floatStorage=!!(gl.getExtension('OES_texture_float')&&gl.getExtension('OES_texture_float_linear')&&gl.getExtension('WEBGL_color_buffer_float')&&gl.getExtension('EXT_float_blend'));quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);program=makeProgram(fragment);initProgram=makeProgram(initial);depositProgram=makeProgram(depositFragment,depositVertex);objectBuffer=gl.createBuffer();sets=[[texture(),texture()],[texture(),texture()]];reform();if(config.volume&&config.volume.length===2){config.volume.forEach((encoded,i)=>{const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));let data;if(config.volumeType==='float'&&bytes.length===AW*AH*16){const values=new Float32Array(bytes.buffer);data=floatStorage?values:Uint8Array.from(values,v=>Math.round(v*255));}else if(bytes.length===AW*AH*4){data=floatStorage?Float32Array.from(bytes,v=>v/255):bytes;}if(data){bind(sets[current][i].tex,0);gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,AW,AH,gl.RGBA,floatStorage?gl.FLOAT:gl.UNSIGNED_BYTE,data);}});}if(config.objects){const saved=Uint8Array.from(atob(config.objects),c=>c.charCodeAt(0));if(saved.length===objects.byteLength)objects.set(new Float32Array(saved.buffer));}gl.bindFramebuffer(gl.FRAMEBUFFER,null);}
+function exportVolume(){if(!gl)return null;const encoded=sets[current].map(item=>{const raw=floatStorage?new Float32Array(AW*AH*4):new Uint8Array(AW*AH*4);gl.bindFramebuffer(gl.FRAMEBUFFER,item.fb);gl.readPixels(0,0,AW,AH,gl.RGBA,floatStorage?gl.FLOAT:gl.UNSIGNED_BYTE,raw);const data=new Uint8Array(raw.buffer);let str='';for(let i=0;i<data.length;i+=8192)str+=String.fromCharCode(...data.subarray(i,i+8192));return btoa(str);});gl.bindFramebuffer(gl.FRAMEBUFFER,null);return encoded;}
+function syncCanvasSize(){
+ if(!gl||gl.isContextLost()||innerWidth<2||innerHeight<2)return false;
+ const scale=Math.min(devicePixelRatio,config.quality,1000/Math.max(innerWidth,innerHeight),Math.sqrt(560000*config.quality/(innerWidth*innerHeight)));
+ const width=Math.max(2,Math.round(innerWidth*scale)),height=Math.max(2,Math.round(innerHeight*scale));
+ if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;firstFrameSize=null;}
+ return true;
+}
+function resize(){if(syncCanvasSize())render();}
+// Read back the completed first frames, rather than revealing a queued GPU draw.
+// A uniform clear/placeholder frame must not satisfy the modal's readiness contract.
+function verifyFirstFrame(){
+ const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
+ if(width<2||height<2||width!==canvas.width||height!==canvas.height){firstFrameSize=null;return;}
+ let low=Infinity,high=-Infinity;
+ const pixel=new Uint8Array(4);
+ for(const y of [.1,.5,.9])for(const x of [.1,.5,.9]){
+  gl.readPixels(Math.floor(width*x),Math.floor(height*y),1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+  const luminance=pixel[0]*.2126+pixel[1]*.7152+pixel[2]*.0722;
+  low=Math.min(low,luminance);high=Math.max(high,luminance);
+ }
+ const error=gl.getError();if(error!==gl.NO_ERROR)throw Error('First WebGL frame readback failed: '+error);
+ const size=width+'x'+height;
+ if(high-low>24){if(firstFrameSize===size){signalReady();return;}firstFrameSize=size;}else firstFrameSize=null;
+ if(++startupAttempts>120)throw Error('WebGL did not produce a usable first scene');
+}
+
+function draw(){if(!syncCanvasSize())return;rebuildMatter();use(program);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);bind(sets[current][0].tex,0);bind(sets[current][1].tex,1);gl.uniform1i(uniform(program,'field'),0);gl.uniform1i(uniform(program,'rose'),1);gl.uniform2f(uniform(program,'resolution'),gl.drawingBufferWidth,gl.drawingBufferHeight);gl.uniform2f(uniform(program,'camera'),0,0);gl.uniform1f(uniform(program,'grain'),config.grain/100);const first=config.layers[0];gl.uniform1f(uniform(program,'sharedTransform'),config.layers.slice(1,4).every(l=>l.x===first.x&&l.y===first.y&&l.size===first.size)?1:0);gl.uniform3fv(uniform(program,'background'),rgb(config.backdrop));config.layers.forEach((l,i)=>{gl.uniform3fv(uniform(program,'color'+i),rgb(l.color));gl.uniform4f(uniform(program,'layer'+i),l.x/100,l.y/100,l.size,l.intensity);});gl.drawArrays(gl.TRIANGLES,0,6);if(!ready){const error=gl.getError();if(error!==gl.NO_ERROR)throw Error('First WebGL draw failed: '+error);verifyFirstFrame();}}
+function frame(now){raf=0;if(document.hidden||!gl||gl.isContextLost())return;if(!syncCanvasSize()){raf=requestAnimationFrame(frame);return;}const dt=last?Math.min((now-last)/1000,.033):.016;last=now;if(!reduce.matches){elapsed+=dt;advancePointer(dt);ripples.forEach(r=>r.age+=dt);ripples=ripples.filter(r=>r.age<2.8);mx+=(tx-mx)*(1-Math.exp(-dt*3.));my+=(ty-my)*(1-Math.exp(-dt*3.));energy=0;strokes.forEach(s=>{s.strength*=Math.exp(-dt*2.8);energy+=s.strength;});stepObjects(dt);}try{draw();}catch(error){showFallback(error);return;}if(!ready||(!reduce.matches&&(config.motion||energy>.001||objectEnergy>.02||config.diffusion>0||ripples.length||(pointerTarget&&pointerFiltered&&Math.hypot(pointerTarget.x-pointerFiltered.x,pointerTarget.y-pointerFiltered.y)>.0001))))raf=requestAnimationFrame(frame);}
+render=()=>{if(!gl||gl.isContextLost()||document.hidden)return;if(!raf){last=0;raf=requestAnimationFrame(frame);}};
+function advancePointer(dt){
+ if(!pointerTarget||!pointerFiltered)return;
+ const ease=1.-Math.exp(-dt*22.),dx=(pointerTarget.x-pointerFiltered.x)*ease,dy=(pointerTarget.y-pointerFiltered.y)*ease;
+ if(Math.hypot(dx,dy)>.00005){pointerFiltered.x+=dx;pointerFiltered.y+=dy;
+  // Frame-based sampling makes the force independent of pointer-event bursts.
+  strokes.push({x:pointerFiltered.x,y:pointerFiltered.y,z:pointerTarget.deep?.75:.38,dx:Math.max(-.65,Math.min(.65,dx/Math.max(dt,.001)*.20)),dy:Math.max(-.65,Math.min(.65,dy/Math.max(dt,.001)*.20)),strength:config.response/20*pointerTarget.force});strokes=strokes.slice(-8);energy=1;
+ }
+}
+function target(e){if(e.pointerType==='touch'){if(activeTouch!==e.pointerId)return;if(touchStart&&Math.hypot(e.clientX-touchStart.x,e.clientY-touchStart.y)>6)touchDragged=true;}if(reduce.matches||e.target.closest('button')){pointerTarget=pointerFiltered=null;previousPointer=null;return;}
+ const x=.5+(e.clientX/innerWidth-.5)/SCENE_SCALE,y=.5+(e.clientY/innerHeight-.5)/SCENE_SCALE;tx=e.clientX/innerWidth-.5;ty=e.clientY/innerHeight-.5;
+ if(!pointerFiltered||previousPointer?.id!==e.pointerId)pointerFiltered={x,y};
+ pointerTarget={x,y,deep:e.shiftKey,force:e.pointerType==='touch'||e.buttons?1:.25};previousPointer={x,y,id:e.pointerId};render();
+}
+function push(e){if(reduce.matches||e.button!==0)return;ripples.push({x:.5+(e.clientX/innerWidth-.5)/SCENE_SCALE,y:.5+(e.clientY/innerHeight-.5)/SCENE_SCALE,z:e.shiftKey?.75:.42,age:0});ripples=ripples.slice(-4);render();}
+
+function stopPointer(){if(touchDragged)suppressClickUntil=performance.now()+500;touchStart=null;touchDragged=false;previousPointer=null;pointerTarget=pointerFiltered=null;tx=ty=0;strokes=[];energy=0;activeTouch=null;}
+document.addEventListener('pointermove',target,{passive:true});
+canvas.addEventListener('pointerdown',e=>{push(e);if(e.pointerType==='touch'){activeTouch=e.pointerId;touchStart={x:e.clientX,y:e.clientY};touchDragged=false;canvas.setPointerCapture(e.pointerId);}target(e);});
+document.documentElement.addEventListener('pointerleave',stopPointer);
+document.addEventListener('pointerup',e=>{if(e.pointerType==='touch')stopPointer();});
+document.addEventListener('pointercancel',()=>{stopPointer();ripples=[];});canvas.addEventListener('lostpointercapture',stopPointer);window.addEventListener('blur',stopPointer);
+function restart(){clearSlide();cancelAnimationFrame(raf);raf=0;stopPointer();config=sceneConfig(sceneIndex);elapsed=tick=last=0;reform();resize();render();}
+$('#restart').addEventListener('click',restart);
+window.addEventListener('message',e=>{if(e.source===parent&&e.data?.type==='weirdos:restart')restart();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&parent!==window)parent.postMessage({type:'weirdos:close'},'*');});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;last=0;}else render();});
+function reduced(){clearSlide();cancelAnimationFrame(raf);raf=0;mx=my=tx=ty=0;strokes=[];ripples=[];pointerTarget=pointerFiltered=null;previousPointer=null;energy=0;render();}reduce.addEventListener('change',reduced);
+window.addEventListener('resize',resize,{passive:true});canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(raf);raf=0;$('#fallback').style.display='block';});canvas.addEventListener('webglcontextrestored',()=>{try{setup();canvas.style.display='block';$('#fallback').style.display='none';resize();render();}catch(error){showFallback(error);}});
+function showFallback(error){cancelAnimationFrame(raf);raf=0;canvas.style.display='none';$('#fallback').style.display='block';signalReady(false);console.warn(error);}
+try{setup();resize();reduced();}catch(error){showFallback(error);}
+</script>
+</body>
+</html>

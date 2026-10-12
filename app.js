@@ -4,11 +4,19 @@ const downloadIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const desktopIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4" stroke-linecap="round"/></svg>';
 const mobileIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 18h4" stroke-linecap="round"/></svg>';
 const mobileDevice = matchMedia('(max-width: 767px), (hover: none) and (pointer: coarse)');
+const logo = document.querySelector('.ascii-logo');
+logo.replaceChildren(...Array.from(logo.textContent, character => {
+  if (character === '\n') return document.createTextNode(character);
+  const cell = document.createElement('span');
+  cell.textContent = character;
+  return cell;
+}));
 const gallery = document.querySelector('#gallery');
 const viewer = document.querySelector('#viewer');
 const stage = document.querySelector('#viewer-stage');
 const viewerTitle = document.querySelector('#viewer-title');
 const viewerDownload = document.querySelector('#viewer-download');
+const viewerRestart = document.querySelector('#viewer-restart');
 const viewerShare = document.querySelector('#viewer-share');
 const cardButtons = new Map();
 let pendingRoute = false;
@@ -163,6 +171,7 @@ function openSnippet(snippet, button, updateURL = true) {
   lockScroll();
   viewerTitle.textContent = snippet.title;
   viewerTitle.title = snippet.title;
+  viewerRestart.hidden = !snippet.restart;
   viewerDownload.setAttribute('aria-label', `Download ${snippet.title} ZIP`);
   viewerShare.setAttribute('aria-label', `Copy ${snippet.title} preview link`);
   viewer.toggleAttribute('data-desktop-only', !!snippet.desktopOnly && mobileDevice.matches);
@@ -184,6 +193,12 @@ function openSnippet(snippet, button, updateURL = true) {
     hint.textContent = 'Best for mobile';
     stage.append(hint);
   }
+  if (snippet.desktopPreferred) {
+    const hint = document.createElement('p');
+    hint.className = 'desktop-preferred-hint';
+    hint.textContent = 'best on desktop';
+    stage.append(hint);
+  }
   layoutModal();
   viewer.showModal();
   const bounds = stage.getBoundingClientRect();
@@ -203,7 +218,7 @@ for (const snippet of snippets) {
   button.type = 'button';
   button.className = 'card-button';
   cardButtons.set(snippet.id, button);
-  button.setAttribute('aria-label', `Open ${snippet.title}, ${snippet.desktopOnly ? 'desktop only' : snippet.mobilePreferred ? 'best for mobile, also works on desktop' : 'desktop and mobile'}`);
+  button.setAttribute('aria-label', `Open ${snippet.title}, ${snippet.desktopOnly ? 'desktop only' : snippet.desktopPreferred ? 'best on desktop, also works on mobile' : snippet.mobilePreferred ? 'best for mobile, also works on desktop' : 'desktop and mobile'}`);
   button.setAttribute('aria-haspopup', 'dialog');
   button.addEventListener('click', () => openSnippet(snippet, button));
   button.addEventListener('focusout', () => { delete button.dataset.restoredFocus; });
@@ -221,9 +236,9 @@ for (const snippet of snippets) {
   title.append(label);
   const devices = document.createElement('span');
   devices.className = 'device-icons';
-  devices.title = snippet.desktopOnly ? 'Desktop only' : snippet.mobilePreferred ? 'Best for mobile; also works on desktop' : 'Desktop and mobile';
+  devices.title = snippet.desktopOnly ? 'Desktop only' : snippet.desktopPreferred ? 'Best on desktop; also works on mobile' : snippet.mobilePreferred ? 'Best for mobile; also works on desktop' : 'Desktop and mobile';
   devices.setAttribute('aria-hidden', 'true');
-  devices.innerHTML = (snippet.mobilePreferred ? '' : desktopIcon) + (snippet.desktopOnly ? '' : mobileIcon);
+  devices.innerHTML = (snippet.mobilePreferred ? '' : desktopIcon) + (snippet.desktopOnly || snippet.desktopPreferred ? '' : mobileIcon);
   row.append(title, devices);
   button.append(shot, row);
   card.append(button);
@@ -240,6 +255,7 @@ document.addEventListener('pointerdown', () => {
   delete document.documentElement.dataset.keyboardFocus;
 }, true);
 
+viewerRestart.addEventListener('click', () => { if (activeSnippet?.restart && liveRendered) liveFrame.contentWindow.postMessage({ type: 'weirdos:restart' }, '*'); });
 viewerDownload.innerHTML = downloadIcon;
 viewerDownload.addEventListener('click', () => { if (activeSnippet) downloadSnippet(activeSnippet); });
 viewerShare.addEventListener('click', copyPreviewLink);
