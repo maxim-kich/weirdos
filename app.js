@@ -1,6 +1,9 @@
 import { snippets } from './snippets.js';
 
 const downloadIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const desktopIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4" stroke-linecap="round"/></svg>';
+const mobileIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 18h4" stroke-linecap="round"/></svg>';
+const mobileDevice = matchMedia('(max-width: 767px), (hover: none) and (pointer: coarse)');
 const gallery = document.querySelector('#gallery');
 const viewer = document.querySelector('#viewer');
 const stage = document.querySelector('#viewer-stage');
@@ -122,12 +125,19 @@ function revealLive() {
   if (modalPhase !== 'open' || !liveLoaded || !liveRendered) return;
   viewer.dataset.ready = '';
   stage.setAttribute('aria-busy', 'false');
-  liveFrame.inert = false;
+  liveFrame.inert = viewer.hasAttribute('data-desktop-only');
 }
 
 function loadLive(snippet, token) {
   if (session !== token || modalPhase !== 'open') return;
   const frame = createFrame(snippet, true);
+  if (viewer.hasAttribute('data-desktop-only')) {
+    const url = new URL(snippet.src, location.href);
+    url.searchParams.set('autoDemo', '1');
+    frame.src = url.href;
+    frame.tabIndex = -1;
+    frame.setAttribute('aria-hidden', 'true');
+  }
   liveFrame = frame;
   frame.classList.add('live-layer');
   frame.inert = true;
@@ -155,6 +165,7 @@ function openSnippet(snippet, button, updateURL = true) {
   viewerTitle.title = snippet.title;
   viewerDownload.setAttribute('aria-label', `Download ${snippet.title} ZIP`);
   viewerShare.setAttribute('aria-label', `Copy ${snippet.title} preview link`);
+  viewer.toggleAttribute('data-desktop-only', !!snippet.desktopOnly && mobileDevice.matches);
   delete viewer.dataset.ready;
   delete viewer.dataset.closing;
   viewer.dataset.phase = 'open';
@@ -163,7 +174,16 @@ function openSnippet(snippet, button, updateURL = true) {
   loader.className = 'viewer-loader';
   loader.setAttribute('role', 'status');
   loader.innerHTML = '<span class="loading-spinner" aria-hidden="true"></span><span class="loading-label">Loading preview</span>';
-  stage.replaceChildren(loader);
+  const notice = document.createElement('div');
+  notice.className = 'desktop-only-notice';
+  notice.innerHTML = `${desktopIcon}<p>This component is desktop only.</p>`;
+  stage.replaceChildren(loader, notice);
+  if (snippet.mobilePreferred) {
+    const hint = document.createElement('p');
+    hint.className = 'mobile-preferred-hint';
+    hint.textContent = 'Best for mobile';
+    stage.append(hint);
+  }
   layoutModal();
   viewer.showModal();
   const bounds = stage.getBoundingClientRect();
@@ -171,7 +191,7 @@ function openSnippet(snippet, button, updateURL = true) {
   const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160;
   modalAnimation = viewer.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing: 'ease-out' });
   shellAnimations = [stage, header].map(element => element.animate([{ transform: `translate(${modalOffset.x}px, ${modalOffset.y}px)` }, { transform: 'translate(0, 0)' }], { duration, easing: 'cubic-bezier(.22, 1, .36, 1)' }));
-  document.querySelector('#viewer-close').focus();
+  viewer.focus({ preventScroll: true });
   // Paint the modal and loader before initializing an independent snippet.
   requestAnimationFrame(() => requestAnimationFrame(() => loadLive(snippet, token)));
 }
@@ -183,7 +203,7 @@ for (const snippet of snippets) {
   button.type = 'button';
   button.className = 'card-button';
   cardButtons.set(snippet.id, button);
-  button.setAttribute('aria-label', `Open ${snippet.title}`);
+  button.setAttribute('aria-label', `Open ${snippet.title}, ${snippet.desktopOnly ? 'desktop only' : snippet.mobilePreferred ? 'best for mobile, also works on desktop' : 'desktop and mobile'}`);
   button.setAttribute('aria-haspopup', 'dialog');
   button.addEventListener('click', () => openSnippet(snippet, button));
   button.addEventListener('focusout', () => { delete button.dataset.restoredFocus; });
@@ -199,7 +219,12 @@ for (const snippet of snippets) {
   const label = document.createElement('span');
   label.textContent = snippet.title;
   title.append(label);
-  row.append(title);
+  const devices = document.createElement('span');
+  devices.className = 'device-icons';
+  devices.title = snippet.desktopOnly ? 'Desktop only' : snippet.mobilePreferred ? 'Best for mobile; also works on desktop' : 'Desktop and mobile';
+  devices.setAttribute('aria-hidden', 'true');
+  devices.innerHTML = (snippet.mobilePreferred ? '' : desktopIcon) + (snippet.desktopOnly ? '' : mobileIcon);
+  row.append(title, devices);
   button.append(shot, row);
   card.append(button);
   gallery.append(card);
@@ -207,9 +232,13 @@ for (const snippet of snippets) {
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Tab') {
+    document.documentElement.dataset.keyboardFocus = '';
     gallery.querySelectorAll('[data-restored-focus]').forEach(button => { delete button.dataset.restoredFocus; });
   }
-});
+}, true);
+document.addEventListener('pointerdown', () => {
+  delete document.documentElement.dataset.keyboardFocus;
+}, true);
 
 viewerDownload.innerHTML = downloadIcon;
 viewerDownload.addEventListener('click', () => { if (activeSnippet) downloadSnippet(activeSnippet); });
@@ -226,6 +255,7 @@ function cleanupPreview() {
   activeSnippet = undefined;
   modalPhase = 'closed';
   delete viewer.dataset.closing;
+  delete viewer.dataset.desktopOnly;
   delete viewer.dataset.phase;
   delete viewer.dataset.ready;
   delete feedback.dataset.visible;
@@ -286,6 +316,17 @@ window.addEventListener('message', (event) => {
 });
 window.addEventListener('resize', () => {
   if (modalPhase !== 'closed') layoutModal();
+});
+mobileDevice.addEventListener('change', () => {
+  if (modalPhase !== 'open' || !activeSnippet?.desktopOnly) return;
+  ++session;
+  liveLoaded = false;
+  liveRendered = false;
+  delete viewer.dataset.ready;
+  viewer.toggleAttribute('data-desktop-only', mobileDevice.matches);
+  stage.setAttribute('aria-busy', 'true');
+  liveFrame?.remove();
+  loadLive(activeSnippet, session);
 });
 window.addEventListener('popstate', syncPreviewURL);
 syncPreviewURL();

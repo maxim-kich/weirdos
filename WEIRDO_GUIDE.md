@@ -1,6 +1,6 @@
 # Adding a weirdo
 
-The user can drop a folder into this project and ask an agent to add it. The agent handles the steps below. `isSwtchCatDisabled` in `elements/cat-switch/` is the working reference.
+The user can drop a folder into this project and ask an agent to add it. The agent handles the steps below. `isSwitchCatDisabled` in `elements/cat-switch/` is the working reference.
 
 ## 1. Import the folder
 
@@ -46,6 +46,10 @@ Append one entry to `snippets.js`:
   download: './downloads/myWeirdo.zip',
 }
 ```
+
+Entries support an optional `desktopOnly: true` flag. Cards show desktop/mobile icons by default, or just desktop for flagged entries. On narrow or touch-only devices, desktop-only modals display a notice over an inert, blurred live demo loaded with `?autoDemo=1`. The element owns that demo animation; it should loop through its real interaction and respect reduced motion. Desktop retains the ordinary interactive snippet.
+
+Use `mobilePreferred: true` for elements that work on both devices but are best on mobile. Their cards show only the mobile icon, and desktop modals display a small “Best for mobile” hint at the bottom while remaining interactive.
 
 The ID must be unique and contain only letters, numbers, hyphens, or underscores. The ZIP filename and its top-level folder use that ID. The title stays one line and truncates automatically. Adding an ordinary entry should not require editing `app.js`, `styles.css`, or the gallery HTML.
 

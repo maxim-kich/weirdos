@@ -4,6 +4,7 @@
   color-scheme: dark;
   --canvas: #111211;
   --surface: #202221;
+  --title-background: #181a19;
   --interactive: #363936;
   --text: #cfdacd;
   --muted: #777d77;
@@ -18,7 +19,8 @@ html.modal-open { overflow: hidden; overscroll-behavior: none; }
 html.modal-open body { position: fixed; left: 0; right: 0; overflow: hidden; }
 body { display: flex; flex-direction: column; min-height: 100dvh; margin: 0; background: var(--canvas); color: var(--text); font: 400 14px/1.4 var(--font); cursor: default; }
 button { font: inherit; color: inherit; cursor: pointer; }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+button:focus { outline: none; }
+html[data-keyboard-focus] button:focus { outline: 2px solid var(--accent); outline-offset: 4px; }
 ::selection { background: var(--accent); color: var(--canvas); }
 .masthead { padding: 40px 40px 32px; }
 h1 { margin: 0; }
@@ -27,21 +29,24 @@ main { flex: 1; padding: 0 40px 40px; }
 .site-footer { padding: 0 40px 24px; font-size: 12px; }
 .site-footer a { color: var(--muted); text-decoration: none; }
 .site-footer a:hover { color: var(--text); }
-a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+a:focus { outline: none; }
+html[data-keyboard-focus] a:focus { outline: 2px solid var(--accent); outline-offset: 4px; }
 .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; row-gap: 24px; }
 .snippet { min-width: 0; background: var(--surface); border: 1px solid transparent; border-radius: 4px; overflow: hidden; cursor: pointer; transition: border-color 150ms, background 150ms; }
 .snippet:hover { border-color: var(--muted); background: var(--interactive); }
 .snippet:hover .title-button { color: var(--accent); }
 .card-button { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; }
-.card-button:focus-visible { outline: none; }
-.snippet:has(.card-button:focus-visible:not([data-restored-focus])) { outline: 2px solid var(--accent); outline-offset: 4px; }
+html[data-keyboard-focus] .card-button:focus { outline: none; }
+html[data-keyboard-focus] .snippet:has(.card-button:focus:not([data-restored-focus])) { outline: 2px solid var(--accent); outline-offset: 4px; }
 .shot { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; border: 0; padding: 0; background: var(--surface); overflow: hidden; }
 .shot iframe { pointer-events: none; }
 iframe { display: block; width: 100%; height: 100%; border: 0; }
-.title-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; background: #181a19; }
+.title-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; background: var(--title-background); }
 .title-button { flex: 1; min-width: 0; text-align: left; padding: 8px 0; border: 0; background: transparent; transition: color 150ms; }
 .title-button:hover { color: var(--accent); }
 .title-button span, #viewer-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-icons { display: flex; flex: none; align-items: center; gap: 8px; color: var(--muted); pointer-events: none; }
+.device-icons svg { width: 16px; height: 16px; }
 .icon-button { flex: 0 0 40px; display: grid; place-items: center; width: 40px; height: 40px; padding: 10px; border: 0; border-radius: 4px; color: var(--muted); background: transparent; transition: color 150ms, background 150ms; }
 .icon-button svg { width: 18px; height: 18px; pointer-events:none; }
 .icon-button:hover { color: var(--text); background: var(--surface); }
@@ -52,13 +57,22 @@ dialog[data-closing]::backdrop { animation:modal-backdrop-out 120ms ease-in both
 @keyframes modal-backdrop-out { from { opacity:1; } to { opacity:0; } }
 dialog::backdrop { cursor: default; background: rgb(17 18 17 / 65%); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); animation:modal-backdrop-in 160ms ease-out both; }
 
-.viewer-header { position: fixed; display: flex; align-items: center; gap: 8px; height: 56px; padding: 8px 12px 8px 16px; background: var(--canvas); }
+.viewer-header { position: fixed; display: flex; align-items: center; gap: 8px; height: 56px; padding: 8px 12px 8px 16px; background: var(--title-background); }
 #viewer-title { flex: 0 1 auto; min-width: 0; margin: 0; font: inherit; }
 .close-button { margin-left: auto; }
 .viewer-stage { position: fixed; left: 0; top: 0; background: var(--surface); overflow: hidden; border-radius: 4px; box-shadow: 0 20px 60px rgba(0, 0, 0, .32); }
 .viewer-stage iframe { position: absolute; inset: 0; transition: opacity 160ms ease; }
 .live-layer { opacity: 0; pointer-events: none; }
 dialog[data-ready] .live-layer { opacity: 1; pointer-events: auto; }
+dialog[data-desktop-only] .live-layer { filter: blur(6px); pointer-events: none; }
+dialog[data-desktop-only][data-ready] .live-layer { opacity: .55; }
+.desktop-only-notice { position: absolute; inset: 0; z-index: 1; display: none; align-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; background: rgb(17 18 17 / 30%); pointer-events: none; }
+.desktop-only-notice svg { width: 28px; height: 28px; }
+.desktop-only-notice p { max-width: 28ch; margin: 0; text-shadow: 0 1px 8px var(--canvas); }
+dialog[data-desktop-only][data-ready] .desktop-only-notice { display: grid; }
+.mobile-preferred-hint { position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 1; margin: 0; color: var(--muted); font-size: 12px; text-align: center; pointer-events: none; visibility: hidden; }
+dialog[data-ready] .mobile-preferred-hint { visibility: visible; }
+@media (max-width: 767px), (hover: none) and (pointer: coarse) { .mobile-preferred-hint { display: none; } }
 .viewer-loader { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; display:grid; place-items:center; width:44px; height:44px; border-radius:50%; background:rgb(17 18 17 / 65%); color:var(--text); visibility:hidden; pointer-events:none; }
 dialog[data-phase="open"]:not([data-ready]) .viewer-loader { visibility:visible; }
 .loading-spinner { width:24px; height:24px; border:2px solid rgb(207 218 205 / 25%); border-top-color:var(--text); border-radius:50%; animation:preview-spin 700ms linear infinite; }
