@@ -1,4 +1,4 @@
-# canYouHearMe
+# Hi, I'm Oruu!
 
 Click to morph between the listening wave and the filled mascot over 480 ms. Clicking again reverses the motion. The existing ribbon fields bend into loops while their widths and material coordinates interpolate; the eye voids open during the fold. Speaking pulses expand only the outer aura, leaving the body and eyes at a fixed scale. The mascot uses two overlapping passes of the same eight measured ribbons as the wave. There is no separate gradient body, new palette, or image texture. Per-pass geometry controls reshape the paths and broaden their inward thickness to fill the body, while retaining small outer folds. The shared shader uses the original core, trail, halo, and colour-energy profiles in both states. Its soft eye voids follow the pointer. The earlier draft in `assets/voice.js` is retained but is not loaded.
 

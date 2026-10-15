@@ -32,10 +32,10 @@ export const snippets = [{
   readyMessage: true,
   download: './downloads/--gradient-animalcula-interstellaria.zip',
 }, {
-  id: 'canYouHearMe',
-  title: 'canYouHearMe',
-  src: './elements/voice-assistant/index.html',
-  previewSrc: './elements/voice-assistant/preview.html',
+  id: 'oruu',
+  title: "Hi, I'm Oruu!",
+  src: './elements/oruu/index.html',
+  previewSrc: './elements/oruu/preview.html',
   readyMessage: true,
-  download: './downloads/canYouHearMe.zip',
+  download: './downloads/oruu.zip',
 }].reverse();

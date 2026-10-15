@@ -289,7 +289,7 @@
     // Allow a short listening beat after the 480 ms morph.
     if (target) speechStart = performance.now()+480+400;
     button.setAttribute('aria-pressed', String(Boolean(target)));
-    button.setAttribute('aria-label', target ? 'Return to the listening wave' : 'Show the speaking mascot');
+    button.setAttribute('aria-label', target ? 'Return to the listening wave' : 'Hear Oruu speak');
   });
   button.addEventListener('pointermove', event => {
     if (event.pointerType === 'touch') return;
