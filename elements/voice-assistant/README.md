@@ -1,0 +1,11 @@
+# canYouHearMe
+
+Click to morph between the listening wave and the filled mascot over 480 ms. Clicking again reverses the motion. The existing ribbon fields bend into loops while their widths and material coordinates interpolate; the eye voids open during the fold. Speaking pulses expand only the outer aura, leaving the body and eyes at a fixed scale. The mascot uses two overlapping passes of the same eight measured ribbons as the wave. There is no separate gradient body, new palette, or image texture. Per-pass geometry controls reshape the paths and broaden their inward thickness to fill the body, while retaining small outer folds. The shared shader uses the original core, trail, halo, and colour-energy profiles in both states. Its soft eye voids follow the pointer. The earlier draft in `assets/voice.js` is retained but is not loaded.
+
+Open `index.html` directly or through the gallery. No server, microphone, or network connection is needed. WebGL with floating-point texture support is required. Reduced motion holds a representative pose and switches states immediately. `?time=1` freezes a timestamp for comparison; `&morph=1` selects the mascot and `&morph=0` selects the wave. These optional capture parameters do not affect normal interaction.
+
+The reference is https://x.com/glebich/status/2109992265838129538/video/1. Its measured cycle repeats every four seconds. The renderer uses eight analytic luminous ribbons with stationary endpoints, scaled uniformly from a 1440 × 1080 reference canvas.
+
+`wave-curves.js` contains spatial control points for ribbon geometry and material, not image frames. `wave.js` interpolates these profiles and computes the light field each frame. Each control point has 27 coefficients: centre cosine/sine at the first and third harmonics (0–3); core, trail, and halo widths (4–6); trail strength and centre factor (7–8); halo strength (9); second-harmonic intensity (10–11) and width (12–13); RGB energy (14–16); RGB sine/cosine modulation (17–22); fourth-harmonic intensity (23–24) and width (25–26). The runtime packs these numbers into a floating-point texture for shader sampling.
+
+The static gallery preview is a captured code-rendered frame. The reference video is not bundled. Fine glow details remain an approximation.

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>canYouHearMe</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+    body { display: grid; place-items: center; }
+    #voice { position: relative; width: 100%; height: 100%; background: #000; border: 0; padding: 0; cursor: pointer; appearance: none; }
+    #voice:focus-visible { outline: 2px solid #72d8ca; outline-offset: -5px; }
+    canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+    .fallback { position: absolute; inset: 0; display: none; place-items: center; color: #a9ccc8; font: 14px system-ui; }
+  </style>
+</head>
+<body>
+  <button id="voice" type="button" aria-label="Show the speaking mascot" aria-pressed="false"><canvas aria-hidden="true"></canvas><span class="fallback">This visual needs WebGL enabled.</span></button>
+  <script src="assets/wave-curves.js"></script>
+  <script src="assets/wave.js"></script>
+</body>
+</html>

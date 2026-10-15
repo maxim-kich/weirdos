@@ -22,4 +22,11 @@ export const snippets = [{
   previewSrc: './elements/button-ultimate/preview.html',
   readyMessage: true,
   download: './downloads/isButtonUltimate.zip',
+}, {
+  id: 'canYouHearMe',
+  title: 'canYouHearMe',
+  src: './elements/voice-assistant/index.html',
+  previewSrc: './elements/voice-assistant/preview.html',
+  readyMessage: true,
+  download: './downloads/canYouHearMe.zip',
 }];
