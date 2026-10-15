@@ -1,4 +1,4 @@
-// Add one entry per element folder. Read WEIRDO_GUIDE.md before integrating.
+// Append new entries; reverse below keeps the gallery newest first. Read WEIRDO_GUIDE.md before integrating.
 export const snippets = [{
   id: 'isSwitchCatDisabled',
   title: 'isSwitchCatDisabled',
@@ -23,10 +23,19 @@ export const snippets = [{
   readyMessage: true,
   download: './downloads/isButtonUltimate.zip',
 }, {
+  id: '--gradient-animalcula-interstellaria',
+  title: '--gradient-animalcula-interstellaria',
+  desktopPreferred: true,
+  restart: true,
+  src: './elements/gradient-animalcula-interstellaria/index.html',
+  previewSrc: './elements/gradient-animalcula-interstellaria/preview.html',
+  readyMessage: true,
+  download: './downloads/--gradient-animalcula-interstellaria.zip',
+}, {
   id: 'canYouHearMe',
   title: 'canYouHearMe',
   src: './elements/voice-assistant/index.html',
   previewSrc: './elements/voice-assistant/preview.html',
   readyMessage: true,
   download: './downloads/canYouHearMe.zip',
-}];
+}].reverse();
