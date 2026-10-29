@@ -57,7 +57,7 @@ body{background:#c0af9e;font-family:-apple-system,BlinkMacSystemFont,'Helvetica 
 .liquid-fill{fill:none;stroke:#07141d55;stroke-width:1.4}
 .liquid-highlight{fill:none;stroke:url(#glass-rim);stroke-width:.7}
 .liquid-surface{filter:drop-shadow(0 2px 2px #0003)}
-.gesture-label{left:20.5px;top:-17px;font-size:7px;font-weight:500;letter-spacing:.05px;text-shadow:0 1px 3px #0009}
+.gesture-label{left:20.5px;top:-19px;font-size:9px;font-weight:500;letter-spacing:.05px;text-shadow:0 1px 3px #0009}
 .glass{background:linear-gradient(155deg,#fff3,#d6e5ee12 48%,#e8f4ff24);backdrop-filter:blur(7px) saturate(1.5);-webkit-backdrop-filter:blur(7px) saturate(1.5);border-color:#ffffff55}
 
 .liquid-fill{stroke:#101b2226;stroke-width:1}
