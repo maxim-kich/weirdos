@@ -1,0 +1,105 @@
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{background:#c0af9e;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;display:grid;place-items:center;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);container-type:size}
+.scene{position:relative;width:640px;height:480px;transform:scale(min(calc(100cqw / 640px),calc(100cqh / 480px)));transform-origin:center;user-select:none;-webkit-user-select:none}
+.desktop{position:absolute;width:1600px;height:1200px;left:50%;top:calc(50% + 120px);transform:translate(-50%,-50%);background:#c0af9e url('desktop.png') 18% 45%/cover no-repeat;pointer-events:none}
+.finder-crop{position:absolute;inset:0;transform:scale(1.65);transform-origin:320px 240px}
+.window{position:absolute;left:271px;top:214px;width:393px;height:393px;border-radius:26px 0 0 0;background:#232829 url('finder-reference.png') -40px -18px/433px 411px no-repeat;overflow:hidden;box-shadow:-7px 10px 20px #0005;z-index:0}
+
+/* One shared motion: the lights and glass settle together, with no individual zoom. */
+.controls{--open-time:280ms;--close-time:210ms;--open-ease:cubic-bezier(.18,.82,.25,1);position:absolute;left:285.5px;top:222px;width:69px;height:36px;display:flex;align-items:center;isolation:isolate;touch-action:none;z-index:4}
+.controls:before{content:'';position:absolute;inset:-9px -12px;z-index:-1}
+.controls:after{content:'';position:absolute;z-index:-1;left:5px;right:5px;top:9px;bottom:9px;background:#222c33 url('finder-reference.png') -125px -35px/433px 411px no-repeat;opacity:0;transition:opacity 35ms 175ms}
+.glass{position:absolute;inset:2px -5px;border-radius:22px;transform-origin:center;background:linear-gradient(145deg,#c8c4c578,#b7b5b35c);border:.65px solid #ffffff40;box-shadow:0 3px 9px #0002,inset 0 .7px 1px #ffffff40,inset 0 -.5px .7px #ffffff18;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);opacity:0;transform:scale(.85);transition:transform var(--close-time) cubic-bezier(.4,0,.6,1),opacity 170ms;z-index:0;pointer-events:none}
+.light{--shift:0px;width:23px;height:36px;flex:none;display:grid;place-items:center;border:0;padding:0;background:none;cursor:pointer;position:relative;z-index:1;outline-offset:3px;-webkit-tap-highlight-color:transparent}
+.red{--shift:-28px}.yellow{--shift:-14px}
+.orb{width:13.5px;height:13.5px;border-radius:50%;display:grid;place-items:center;position:relative;pointer-events:none;opacity:0;transform:translateX(0) scale(1);transition:transform var(--close-time) cubic-bezier(.4,0,.6,1),opacity 35ms 175ms}
+.red .orb{background:#ff525c}.yellow .orb{background:#ffca00}.green .orb{background:#28c840}
+.orb:after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 .5px .8px #ffffff40,inset 0 -.5px .5px #00000012;pointer-events:none}
+.light svg{width:10px;height:10px;fill:none;stroke:#8b2220;stroke-width:1.5;stroke-linecap:round;opacity:0;transition:opacity 70ms;pointer-events:none}
+.yellow svg{stroke:#8e6800}.green svg{fill:#14700c;stroke:none}
+.expanded .glass{opacity:1;transform:translateX(-14px) scale(1.45,1.06);transition:transform var(--open-time) var(--open-ease),opacity 140ms}
+.expanded .orb{opacity:1;transform:translateX(var(--shift)) scale(1.85);transition:transform var(--open-time) var(--open-ease),opacity 60ms}
+.controls.expanded:after{opacity:1;transition:opacity 60ms}
+.expanded .light svg{opacity:.85;transition:opacity 110ms 65ms}
+.light:focus-visible{outline:2px solid #007aff;border-radius:8px}
+@media(prefers-reduced-motion:reduce){.orb,.glass,.controls:after,.light svg{transition:none!important}}
+/* Gesture surface: a continuous glass silhouette follows the pulled light. */
+.liquid-surface{position:absolute;left:-65px;top:-15px;width:175px;height:180px;overflow:visible;pointer-events:none;z-index:0;opacity:0;filter:drop-shadow(0 3px 4px #0002)}
+.liquid-fill{fill:#bab8b775;stroke:#ffffff55;stroke-width:.7;stroke-linejoin:round}
+.pulling .liquid-surface{opacity:1}.pulling .glass{opacity:0;transition:opacity 80ms}
+.expanded .orb{transform:translate(calc(var(--shift) + var(--drag-x,0px)),var(--drag-y,0px)) scale(1.85)}
+.expanded .selected .orb{transform:translate(calc(var(--shift) + var(--drag-x,0px)),var(--drag-y,0px)) scale(1.96)}
+.pulling .orb{transition:opacity 60ms,scale 120ms;will-change:transform}
+.selected{z-index:3}.armed .selected .orb{box-shadow:0 0 0 1px #ffffff80,0 2px 6px #0003}
+.gesture-label{position:absolute;left:var(--label-x,0px);top:var(--label-y,60px);transform:translateX(-50%);font-size:8px;line-height:1;white-space:nowrap;color:white;text-shadow:0 1px 4px #000;pointer-events:none}
+.finder-crop{transition:transform 520ms cubic-bezier(.2,.8,.2,1),opacity 240ms;transform-origin:320px 240px}
+.is-closed{opacity:0;transform:scale(1.55);pointer-events:none}
+.is-minimized{opacity:0;transform:translate(0,215px) scale(.06);pointer-events:none}
+.is-fullscreen{transform:translate(-253px,-196px) scale(1);transform-origin:0 0}
+.is-fullscreen .window{width:604px;height:444px;border-radius:12px;background-color:#232829}
+.is-fullscreen .controls{pointer-events:none}
+.restore{position:absolute;bottom:18px;left:calc(50% - 29px);width:58px;height:54px;padding:6px;border-radius:13px;border:1px solid #ffffff60;background:#ffffff30;backdrop-filter:blur(16px);cursor:pointer;box-shadow:0 5px 18px #0003;z-index:10}
+.restore svg{width:100%;height:100%;pointer-events:none}.exit-fullscreen{position:absolute;top:27px;right:30px;width:30px;height:30px;border-radius:50%;border:1px solid #ffffff30;background:#ffffff15;color:#eee;font-size:21px;cursor:pointer;z-index:10}
+.status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){.finder-crop,.orb{transition:none!important}}
+.is-fullscreen .window{background-image:url('finder-full.png');background-size:1030px 506.245px;background-position:-36.05px -25.75px;background-repeat:no-repeat}
+.controls.expanded:before{inset:-9px -40px}
+.controls:after{left:3px;right:3px;top:7px;bottom:7px}
+.liquid-fill{fill:transparent;stroke:#ffffff50;stroke-width:.6}
+.liquid-material{width:100%;height:100%;background:linear-gradient(145deg,#d6d3d369,#a8a8a85e);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3)}
+.exit-fullscreen:focus:not(:focus-visible),.restore:focus:not(:focus-visible){outline:none}
+
+/* The material stays transparent; the rim supplies the visual thickness. */
+.liquid-backdrop{position:absolute;left:-45px;top:-5px;width:140px;height:95px;background:linear-gradient(155deg,#fff3,#d6e5ee12 48%,#e8f4ff24);backdrop-filter:blur(7px) saturate(1.5);-webkit-backdrop-filter:blur(7px) saturate(1.5);pointer-events:none;opacity:0;z-index:0}
+.pulling .liquid-backdrop{opacity:1}
+.liquid-fill{fill:none;stroke:#07141d55;stroke-width:1.4}
+.liquid-highlight{fill:none;stroke:url(#glass-rim);stroke-width:.7}
+.liquid-surface{filter:drop-shadow(0 2px 2px #0003)}
+.gesture-label{left:20.5px;top:-17px;font-size:7px;font-weight:500;letter-spacing:.05px;text-shadow:0 1px 3px #0009}
+.glass{background:linear-gradient(155deg,#fff3,#d6e5ee12 48%,#e8f4ff24);backdrop-filter:blur(7px) saturate(1.5);-webkit-backdrop-filter:blur(7px) saturate(1.5);border-color:#ffffff55}
+
+.liquid-fill{stroke:#101b2226;stroke-width:1}
+.liquid-highlight{stroke-width:.65}
+
+/* All window actions keep the original controls. */
+.is-fullscreen .controls{pointer-events:auto}
+
+.pulling .glass{opacity:0;transition:none}
+.controls:after{pointer-events:none}
+.genie{position:absolute;inset:0;width:640px;height:480px;pointer-events:none;z-index:8}
+.is-minimized{opacity:0;transform:scale(1.65);transition:none}
+.is-closed{opacity:0;transform:scale(1.62);filter:blur(.35px);transition:opacity 150ms ease-out,transform 180ms ease-out,filter 150ms}
+.window{transition:width 520ms cubic-bezier(.2,.8,.2,1),height 520ms cubic-bezier(.2,.8,.2,1),border-radius 520ms}
+@media(prefers-reduced-motion:reduce){.window,.is-closed{transition:none!important}}
+
+/* Magnification transfers continuously with the finger, not a selected-class jump. */
+.expanded .orb,.expanded .selected .orb{transform:translate(calc(var(--shift) + var(--drag-x,0px)),var(--drag-y,0px)) scale(var(--orb-scale,1.85))}
+html:not(.keyboard-navigation) .light:focus,html:not(.keyboard-navigation) .restore:focus{outline:none}
+
+.clock-replacement,.locations-replacement{display:none;position:absolute;pointer-events:none}
+.is-fullscreen .clock-replacement{display:block;left:524.27px;top:168.405px;width:80.855px;height:101.97px;background:url('finder-full.png') -643.75px -194.155px/1030px 506.245px no-repeat}
+.is-fullscreen .locations-replacement{display:block;left:18px;top:316px;width:224px;height:120px}
+
+/* Centered expansion, with only a small increase in glass padding. */
+.expanded .glass{transform:translateX(-14px) scale(1.47595,1.125)}
+.liquid-backdrop{width:150px;height:110px}
+.liquid-surface{transform-origin:85.5px 33px;transform:scale(var(--panel-sx,1),var(--panel-sy,1))}
+.liquid-backdrop{transform-origin:65.5px 23px;transform:scale(var(--panel-sx,1),var(--panel-sy,1))}
+
+.green svg{fill:none;stroke:#146b30;stroke-width:1.65;stroke-linejoin:round}
+
+/* Reference glyphs use a 28-unit native button grid. */
+.red .orb{background:#ec6765}.yellow .orb{background:#f2ca44}.green .orb{background:#65c466}
+.light svg{width:100%;height:100%;stroke-width:4;stroke-linecap:round}
+.red svg{stroke:#763433}.yellow svg{stroke:#7a6522}
+.green svg{stroke:none;fill:#336233}
+.expanded .light svg{opacity:1}
+.orb:after{box-shadow:inset 0 .25px .3px #ffffff18}
+
+.red svg{stroke-width:3.8}
+
+/* One rounded outline for pressed, released, and keyboard-open states. */
+.live.expanded .glass{opacity:0;transition:none}
+.live.expanded .liquid-surface,.live.expanded .liquid-backdrop{opacity:1}

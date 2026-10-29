@@ -38,4 +38,11 @@ export const snippets = [{
   previewSrc: './elements/oruu/preview.html',
   readyMessage: true,
   download: './downloads/oruu.zip',
+}, {
+  id: 'mac-folder',
+  title: 'Dear Apple, please...',
+  src: './elements/mac-folder/index.html',
+  previewSrc: './elements/mac-folder/preview.html',
+  readyMessage: true,
+  download: './downloads/mac-folder.zip',
 }].reverse();

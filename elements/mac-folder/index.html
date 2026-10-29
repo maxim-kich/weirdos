@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dear Apple, please...</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="scene" aria-label="Finder window corner on a macOS desktop">
+ <div class="desktop" aria-hidden="true"></div>
+ <div class="finder-crop">
+ <div class="window" role="img" aria-label="Finder Applications. Sidebar: Recents, Shared, Favorites, Applications selected, Desktop, Documents, Downloads, Locations, iCloud Drive, maxim.kich, Drag 2.0 (Alpha), AirDrop, Trash. Apps include Clock."><div class="clock-replacement" aria-hidden="true"></div><img class="locations-replacement" src="assets/sidebar-locations.svg" alt=""></div>
+ <div class="controls" role="group" aria-label="Window controls">
+  <div class="glass"></div>
+  <div class="liquid-backdrop" aria-hidden="true"></div>
+  <svg class="liquid-surface" viewBox="-65 -15 175 180" aria-hidden="true">
+   <defs><linearGradient id="glass-rim" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#fff" stop-opacity=".8"/><stop offset=".35" stop-color="#fff" stop-opacity=".12"/><stop offset=".65" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity=".5"/></linearGradient></defs>
+   <path class="liquid-fill"/><path class="liquid-highlight"/>
+  </svg>
+  <span class="gesture-label" aria-hidden="true"></span>
+  <button class="light red" aria-label="Close window — slide down to confirm"><span class="orb"><svg viewBox="0 0 28 28"><path d="M8.6 8.6 19.4 19.4M19.4 8.6 8.6 19.4"/></svg></span></button>
+  <button class="light yellow" aria-label="Minimize window — slide down to confirm"><span class="orb"><svg viewBox="0 0 28 28"><path d="M8 14h12"/></svg></span></button>
+  <button class="light green" aria-label="Full screen — slide down to confirm"><span class="orb"><svg viewBox="0 0 28 28"><path d="M11 8h5.8q.8 0 .65 .55l-8.9 8.9Q8 18 8 17.2V11q0-3 3-3ZM17 20h-5.8q-.8 0-.65-.55l8.9-8.9Q20 10 20 10.8V17q0 3-3 3Z"/></svg></span></button>
+ </div>
+ </div>
+ <button class="restore" aria-label="Open Finder window" hidden><svg viewBox="0 0 48 40" aria-hidden="true"><path fill="#56b6eb" d="M2 9Q2 4 7 4h12l5 5h17q5 0 5 5v20q0 4-5 4H7q-5 0-5-4Z"/><path fill="#8bd3f5" d="M2 15h44v19q0 4-5 4H7q-5 0-5-4Z"/></svg></button>
+
+ <div class="status" role="status" aria-live="polite"></div>
+</main>
+<img id="window-texture" src="assets/finder-reference.png" hidden alt="">
+<script src="assets/transitions.js"></script>
+<script src="assets/interaction.js"></script>
+</body>
+</html>

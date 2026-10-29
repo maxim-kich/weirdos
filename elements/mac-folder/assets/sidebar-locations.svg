@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="224" height="120" viewBox="0 0 224 120">
+<defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#1e2a2d"/><stop offset="1" stop-color="#1e2e2a"/></linearGradient></defs>
+<path fill="url(#bg)" d="M0 0h224v120H0z"/>
+<g fill="none" stroke="#e0edf0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+<path d="M13 22H7a4 4 0 0 1-1-8 5 5 0 0 1 8-5 5 5 0 0 1 8 5 4 4 0 0 1-1 8Z"/>
+<path d="m4 42 9-8 9 8m-16-2v13h6v-8h4v8h5V40"/>
+<path d="M5 76h17q2 0 2-2l-3-10H7L3 74q0 2 2 2Zm-1-5h19m-4 2.5h1"/>
+<g transform="translate(3 85)"><path d="M4 14a9 9 0 1 1 13 0M6 12a6 6 0 1 1 9 0M8 10a3 3 0 1 1 5 0M10.5 9l-4 8h8Z"/></g>
+<path d="M6 108h15m-12 0v-3h9v3m-11 0 1 10h11l1-10m-9 2v6m4-6v6"/>
+</g>
+<g fill="#e0edf0" font-family="-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif" font-size="13.5"><text x="31" y="21">iCloud Drive</text><text x="31" y="48">maxim.kich</text><text x="31" y="75">Drag 2.0 (Alpha)</text><text x="31" y="98">AirDrop</text><text x="31" y="119">Trash</text></g>
+<path fill="#87918e" opacity=".55" d="m204 68 5-6 5 6Zm0 2h10v2h-10Z"/>
+</svg>
