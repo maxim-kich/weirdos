@@ -103,3 +103,6 @@ html:not(.keyboard-navigation) .light:focus,html:not(.keyboard-navigation) .rest
 /* One rounded outline for pressed, released, and keyboard-open states. */
 .live.expanded .glass{opacity:0;transition:none}
 .live.expanded .liquid-surface,.live.expanded .liquid-backdrop{opacity:1}
+
+/* Mask the blur output as well as the tint on mobile compositors. */
+.liquid-backdrop{mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-size:100% 100%;-webkit-mask-size:100% 100%}

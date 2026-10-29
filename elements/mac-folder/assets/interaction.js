@@ -64,7 +64,10 @@ function draw(){
  const path=(ox=0,oy=0)=>points.map((p,i)=>`${i?'L':'M'}${(p[0]+ox).toFixed(2)} ${(p[1]+oy).toFixed(2)}`).join(' ')+' Z';
  liquid.setAttribute('d',path());
  document.querySelector('.liquid-highlight').setAttribute('d',path());
- document.querySelector('.liquid-backdrop').style.clipPath=`path("${path(45,5)}")`;
+ // Alpha masking clips both the material and its composited backdrop blur.
+ const mask=`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="150" height="110"><path fill="white" d="${path(45,5)}"/></svg>`)}")`;
+ const backdrop=document.querySelector('.liquid-backdrop');
+ backdrop.style.maskImage=mask;backdrop.style.webkitMaskImage=mask;
  controls.classList.toggle('pulling',!!gesture||shownY>1);
  updateHint();
  label.style.setProperty('--label-x','20.5px');label.style.setProperty('--label-y','-17px');
